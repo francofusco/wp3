@@ -71,7 +71,7 @@ class Tile(object):
             # Create a tile that should fit in the current grid coordinates.
             tile = cls(row, col, spacing, side_length, variant)
 
-            if tile.within((0, sheet_width), (0, sheet_height)):
+            if tile.within((0, sheet_width), (0, sheet_height), tolerance=1e-10):
                 # If the tile does fit, "place it" and then go to the
                 # second-next column. We advance by two due to the vertical
                 # offsets that are present in odd columns when using some shapes
@@ -165,15 +165,6 @@ class Tile(object):
         return type(self)(self.row, self.col, self.spacing, self.side_length,
                           self.variant)
 
-    def add_to_axis(self, ax):
-        """Add the tile and its border to a plot.
-
-        Args:
-            ax: matplotlib.axes.Axes instance where patches should be placed.
-        """
-        ax.add_patch(self.outer_patch)
-        ax.add_patch(self.patch)
-
     def vertices(self, border=1.0):
         """List of vertices, as a NumPy array.
 
@@ -200,7 +191,7 @@ class Tile(object):
         d = np.diff(np.vstack((verts, [verts[0]])), axis=0)
         return np.sum(np.sqrt(np.einsum("ij,ij->i", d, d)))
 
-    def within(self, x_range, y_range, include_border=True):
+    def within(self, x_range, y_range, include_border=True, tolerance=0.0):
         """Tells if this tile fits the given rectangular domain.
 
         Args:
@@ -210,6 +201,8 @@ class Tile(object):
                 rectangular domain.
             include_border: if True, then the tile and its margin must both
                 fully fit the domain. Otherwise, only the tile has to.
+            tolerance: extend the x and y ranges by this margin, to compensate
+                for possible numerical rounding errors.
         Returns:
             fits: True if the tile (and eventually its outer margin) fits
                 within the given rectangular domain.
@@ -218,7 +211,10 @@ class Tile(object):
         verts = self.vertices(border=1.0 if include_border else 0.0)
 
         # Check if all vertices are within the bounds.
-        return np.all(x_range[0] <= verts[:,0] <= x_range[1]) and np.all(y_range[0] <= verts[:,1] <= y_range[1])
+        return np.all(x_range[0] - tolerance <= verts[:,0]) and \
+               np.all(verts[:,0] <= x_range[1] + tolerance) and \
+               np.all(y_range[0] - tolerance <= verts[:,1]) and \
+               np.all(verts[:,1] <= y_range[1] + tolerance)
 
     def contains(self, x, y):
         """Check if a point lies within this tile.
@@ -246,6 +242,16 @@ class Tile(object):
         """
         raise NotImplemented("This method is abstract and must be implemented "
                              "in sub-classes.")
+
+    def add_to_axis(self, ax):
+        """Add the tile and its border to a plot.
+
+        Args:
+            ax: matplotlib.axes.Axes instance where patches should be placed.
+        """
+        if self.spacing > 0:
+            ax.add_patch(self.outer_patch)
+        ax.add_patch(self.patch)
 
     def set_visible(self, visible):
         """Change visibility of this tile.

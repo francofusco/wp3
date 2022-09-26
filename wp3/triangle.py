@@ -122,4 +122,4 @@ class Triangle(Tile):
         # lazy check: just verify that the distance between their centers is the
         # one expected between two neighbours.
         distance = np.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
-        return np.allclose(distance, self.side_length + self.spacing)
+        return np.allclose(distance, self.side_length / np.sqrt(3) + self.spacing)

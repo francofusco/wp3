@@ -53,7 +53,6 @@ def main():
             # make sure to hide it.
             if initial_tiling is not None and [row, col] not in initial_tiling:
                 tile.set_visible(False)
-    print(tile.perimeter())
 
     # Calculate the dimensions of the canvas.
     canvas_width, canvas_height = wp3.get_bounding_box_size(tiles)
@@ -183,26 +182,27 @@ def main():
     # List of items to be purchased/manufactured.
     bill_of_materials = []
 
-    # Count how many "walls" are needed. If all hexagons were separated, we
-    # would have a total of six outer walls per hexagon. However, whenever two
-    # hexagons share a side, the corresponding two outer walls should be
-    # replaced by a single inner wall.
-    outer_walls = len(visible_hexagons) * 6
+    # Count how many "walls" are needed. If all tiles were separated, we would
+    # have a total of six outer walls per tile. However, whenever two tiles
+    # share a side, the corresponding two outer walls should be replaced by a
+    # single inner wall.
+    walls_per_tile = len(visible_tiles[0].vertices())
+    outer_walls = len(visible_tiles) * walls_per_tile
     inner_walls = 0
-    # Look for all pairs of hexagons, with no repetitions.
-    for i, hexagon in enumerate(visible_hexagons):
-        for other in visible_hexagons[i+1:]:
-            # If the other hexagon is adjacent, then remove one shared wall.
-            if hexagon.adjacent(other):
+    # Look for all pairs of tiles, with no repetitions.
+    for i, tile in enumerate(visible_tiles):
+        for other in visible_tiles[i+1:]:
+            # If the other tile is adjacent, then remove one shared wall.
+            if tile.adjacent(other):
                 outer_walls -= 2
                 inner_walls += 1
-    walls_notes = f"Side Length: {np.round(1000*settings['panels']['side_length'], 2)}mm. Spacing: {np.round(1000*settings['panels']['spacing'], 2)}mm. Remember to update the CAD accordingly and export the STL meshes to print them."
-    bill_of_materials.append(BillItem(name="outer wall", quantity=outer_walls, category="3D printed", notes=walls_notes))
-    bill_of_materials.append(BillItem(name="inner wall", quantity=inner_walls, category="3D printed", notes=walls_notes))
+    walls_notes = f"Side Length: {np.round(1000*settings['panels']['side_length'], 2)}mm. Spacing: {np.round(1000*settings['panels']['spacing'], 2)}mm. Junction Angle: {np.round(180/walls_per_tile, 2)}deg. Remember to update the CAD accordingly and export the STL meshes to print them."
+    bill_of_materials.append(wp3.BillItem(name="outer wall", quantity=outer_walls, category="3D printed", notes=walls_notes))
+    bill_of_materials.append(wp3.BillItem(name="inner wall", quantity=inner_walls, category="3D printed", notes=walls_notes))
 
     # Process panel materials. The goal is, for each panel type, to evaluate how
-    # many hexagons can be inserted, or how much it costs to fill them (in case
-    # the cost depends on the size).
+    # many tiles can be inserted, or how much it costs to fill them (in case the
+    # cost depends on the size).
     # TODO: it would be ideal to allow, for variable size materials, to let
     # the designer try with different sizes as well.
     panel_material_data = {}
@@ -210,79 +210,82 @@ def main():
     for i, (layer_name, layer) in enumerate(settings["materials"]["sheets"].items()):
         fig, ax = plt.subplots()
         width, height = layer["size"]
-        hexagons_vs = Hexagon.fit_in_sheet(len(visible_hexagons), True, 0,
-                                           settings["panels"]["side_length"],
-                                           width, height)
-        hexagons_hs = Hexagon.fit_in_sheet(len(visible_hexagons), False, 0,
-                                           settings["panels"]["side_length"],
-                                           width, height)
+        tilings = []
+        for variant in TileClass.get_variants():
+            tiling = TileClass.fit_in_sheet(len(visible_tiles), 0,
+                                            settings["panels"]["side_length"],
+                                            variant, width, height)
+            if len(tiling) > 0:
+                tilings.append(tiling)
+        if len(tilings) == 0:
+            print("Could not fit any tile in", layer_name)
+            continue
+
         if height == np.inf:
-            _, height_vs = get_bounding_box_size(hexagons_vs)
-            _, height_hs = get_bounding_box_size(hexagons_hs)
-            if height_vs < height_hs:
-                bb_height = height_vs
-                hexagons_layer = hexagons_vs
-            else:
-                bb_height = height_hs
-                hexagons_layer = hexagons_hs
-            layer_cost = layer.get("cost", 0) * height_vs
+            heights = np.array([wp3.get_bounding_box_size(tiling)[1] for tiling in tilings])
+            idx = heights.argmin()
+            bb_height = heights[idx]
+            tiles_layer = tilings[idx]
+            layer_cost = layer.get("cost", 0) * bb_height
         else:
-            area_vs = get_bounding_box_area(hexagons_vs)
-            area_hs = get_bounding_box_area(hexagons_vs)
-            hexagons_layer = hexagons_vs if area_vs < area_hs else hexagons_hs
+            areas = np.array([wp3.get_bounding_box_area(tiling) for tiling in tilings])
+            tiles_layer = tilings[areas.argmin()]
             layer_cost = layer.get("cost", 0)
             bb_height = height
 
-        panel_material_data[layer_name] = Struct(name=layer_name,
-                                                 value=len(hexagons_layer),
-                                                 cost=layer_cost,
-                                                 variable_size=height==np.inf,
-                                                 height=bb_height,
-                                                 unit_cost=layer.get("cost", 0))
+        panel_material_data[layer_name] = wp3.Struct(name=layer_name,
+                                                     value=len(tiles_layer),
+                                                     cost=layer_cost,
+                                                     variable_size=height==np.inf,
+                                                     height=bb_height,
+                                                     unit_cost=layer.get("cost", 0))
 
         ax.set_aspect("equal")
         ax.set_xlim(0, width)
         ax.set_ylim(0, bb_height)
         ax.set_title(layer_name)
 
-        for hexagon in hexagons_layer:
-            hexagon.add_to_axis(ax)
+        for tile in tiles_layer:
+            tile.patch.set_linewidth(0.2)
+            tile.patch.set_edgecolor("black")
+            tile.patch.set_facecolor("lightgray")
+            tile.add_to_axis(ax)
 
         fig.tight_layout()
         fig.savefig(output_dir.joinpath(f"{layer_name}.pdf"), bbox_inches='tight')
         plt.close("all")
 
     for i, materials in enumerate(settings["assembly"]["sheets"]):
-        components, cost, value = named_tree_search([panel_material_data[m] for m in materials], len(visible_hexagons))
+        components, cost, value = wp3.named_tree_search([panel_material_data[m] for m in materials], len(visible_tiles))
         for component, quantity in components:
             url = settings["materials"]["sheets"][component.name].get("url")
             url_md = f"[url link]({url})" if url is not None else ""
             if component.variable_size:
                 quantity = np.round(component.height, 3)
-            bill_of_materials.append(BillItem(name=component.name, quantity=quantity, cost=component.unit_cost, category=f"sheets-{i}", notes=url_md))
+            bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.unit_cost, category=f"sheets-{i}", notes=url_md))
 
     leds_material_data = {}
     for i, (strip_name, strip) in enumerate(settings["materials"]["leds"].items()):
         strip_length = strip["number_of_leds"] / strip["leds_per_meter"]
-        leds_material_data[strip_name] = Struct(name=strip_name,
-                                                value=strip_length,
-                                                cost=strip.get("cost", 0))
+        leds_material_data[strip_name] = wp3.Struct(name=strip_name,
+                                                    value=strip_length,
+                                                    cost=strip.get("cost", 0))
 
-    required_led_length = len(visible_hexagons) * 6 * settings["panels"]["side_length"]
+    required_led_length = len(visible_tiles) * 6 * settings["panels"]["side_length"]
     for i, materials in enumerate(settings["assembly"]["leds"]):
-        components, cost, value = named_tree_search([leds_material_data[m] for m in materials], required_led_length)
+        components, cost, value = wp3.named_tree_search([leds_material_data[m] for m in materials], required_led_length)
         for component, quantity in components:
             url = settings["materials"]["leds"][component.name].get("url")
             url_md = f"[url link]({url})" if url is not None else ""
-            bill_of_materials.append(BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=url_md))
+            bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=url_md))
         watts = sum(n*settings["materials"]["leds"][c.name].get("watts", np.nan) for c, n in components)
         if watts != np.nan:
-            bill_of_materials.append(BillItem(name=f"{watts}W Power Supply Unit", category=f"leds-{i}", notes="The power has been estimated. You might need a lower wattage."))
+            bill_of_materials.append(wp3.BillItem(name=f"{watts}W Power Supply Unit", category=f"leds-{i}", notes="The power has been estimated. You might need a lower wattage."))
 
-    bill_of_materials.append(BillItem(name="3 pin connectors", quantity=len(visible_hexagons), category="wiring", notes="The quantity refers to male/female pairs."))
-    bill_of_materials.append(BillItem(name="Three-way electrical wire", quantity=np.round(routing_data.evaluate_cost(best_routing, repetition_penalty=0), 3), category="wiring", notes="This is likely an overestimation, since the length of the connectors is not taken into account."))
+    bill_of_materials.append(wp3.BillItem(name="3 pin connectors", quantity=len(visible_tiles), category="wiring", notes="The quantity refers to male/female pairs."))
+    bill_of_materials.append(wp3.BillItem(name="Three-way electrical wire", quantity=np.round(routing.evaluate_cost(best_routing, repetition_penalty=0), 3), category="wiring", notes="This is likely an overestimation, since the length of the connectors is not taken into account."))
 
-    BillItem.dump_to_markdown(bill_of_materials, output_dir.joinpath("bill_of_materials.md"))
+    wp3.BillItem.dump_to_markdown(bill_of_materials, output_dir.joinpath("bill_of_materials.md"))
 
 if __name__ == '__main__':
     main()

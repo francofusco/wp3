@@ -172,6 +172,20 @@ class SettingsDict(UserDict):
         # Return the retrieved value.
         return value
 
+    def get(self, key, default=None):
+        """Return the value for key if key is in the dictionary, else default.
+
+        This is just like dict.get, but is reimplemented for technical reasons.
+
+        Args:
+            key: the key associated with the desired value.
+            default: value to return if the key is not found.
+        Returns:
+            The value for key if key is in the dictionary, else default.
+        """
+        return self[key] if key in self else default
+
+
     def extract(self, key, default=None):
         """Get a deep-copy of the value associated to the given key.
 
