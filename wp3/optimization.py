@@ -463,7 +463,7 @@ def named_tree_search(named_choices, target):
     for elem in best_sequence[1:]:
         # If the current element has been found already, increment its
         # frequency. Otherwise, add it and set its frequency to one.
-        if elem.name == unique_elements[-1]:
+        if elem.name == unique_elements[-1].name:
             frequency[-1] += 1
         else:
             unique_elements.append(elem)
