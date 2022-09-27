@@ -14,18 +14,30 @@ class Routing:
     vertex of the j-th tile.
     """
 
-    def __init__(self, tiles):
+    def __init__(self, tiles, segments=1):
         """Create data to be used to find an optimal cable routing.
 
         Args:
             tiles: a list of Tile instances. They should correspond to tiles
                 of the same type, in terms of both subclass and geometric
                 parameters.
+            segments: how many segments should be used for routing. With 1
+                segment, the solution is a single path from start to finish.
+                Otherwise, the solution uses multiple segments with
+                interruptions in between. The ending tile of each segment can
+                be found in the variable cuts.
         """
         # It does not make sense to perform routing for less than two tiles.
         if len(tiles) < 2:
             raise ValueError(f"The number of tiles in a routing problem should "
                              f"be at least two, not {len(tiles)}.")
+
+        # The most segments we can produce is one per tile.
+        if not (1 <= segments <= len(tiles)):
+            raise ValueError(f"Invalid number of segments given to the routing "
+                             f"algorithm. The number of segments must be "
+                             f"between 1 and {len(tiles)} (number of tiles). "
+                             f"Received value: {segments}.")
 
         # List of all unique 2D points in the group of tile vertices.
         self.vertices = unique_vertices(tiles)
@@ -53,6 +65,12 @@ class Routing:
         # Store some dimensions for faster and clearer access.
         self.n_vertices = len(self.vertices)
         self.n_tiles, self.vertices_per_tile = self.tiles.shape
+
+        # Allow cutting into multiple segments.
+        if segments > 1:
+            self.cuts = [c[-1] for c in np.array_split(np.arange(self.n_tiles), segments)[:-1]]
+        else:
+            self.cuts = []
 
     def random_sample(self):
         """Create a routing sample at random.
@@ -87,6 +105,7 @@ class Routing:
 
         # Calculate the length of the routing path.
         d = np.diff(self.vertices[index_sequence], axis=0)
+        d[self.cuts] = 0
         path_length = np.sum(np.sqrt(np.einsum("ij,ij->i", d, d)))
 
         # Count how many times vertices are repeated. Ideally, we would like
@@ -349,7 +368,7 @@ class Routing:
             tile = tiles[sample[0,i]]
             p = (1-alpha) * vertex_sequence[i] + alpha * np.array([tile.x, tile.y])
             ax.plot(*p, "o", color=color)
-            if i > 0:
+            if i > 0 and i-1 not in self.cuts:
                 d = p - prev_p
                 ax.arrow(*prev_p, *d, color=color, linewidth=0.5, head_width=0.01, length_includes_head=True)
             prev_p = p

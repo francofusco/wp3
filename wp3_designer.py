@@ -103,9 +103,19 @@ def main():
     with open(output_dir.joinpath("initial_tiling.yaml"), "a") as f:
         print("initial_tiling:", tiling_coordinates, file=f)
 
+    # Read how many segments should be generated in the routing problem.
+    segments = 1
+    if settings.has("routing", "segments") and settings.has("routing", "tiles_per_segment"):
+        print("Sorry, but the parameters 'routing/segments' and "
+              "'routing/tiles_per_segment' should not be given at the same time")
+    if settings.has("routing", "segments"):
+        segments = settings["routing"]["segments"]
+    elif settings.has("routing", "tiles_per_segment"):
+        segments = np.ceil(len(visible_tiles) / settings["routing"]["tiles_per_segment"]).astype(int)
+
     # Setup the routing problem and generate an initial solution, either from
     # a pre-computed one or at random.
-    routing = wp3.Routing(visible_tiles)
+    routing = wp3.Routing(visible_tiles, segments=segments)
     best_routing = routing.random_sample()
     if settings.has("routing", "cache"):
         cache = np.array(settings["routing"]["cache"])
@@ -167,6 +177,10 @@ def main():
             routing_kwargs = settings.extract("routing", {})
             if "cache" in routing_kwargs:
                 routing_kwargs.pop("cache")
+            if "segments" in routing_kwargs:
+                routing_kwargs.pop("segments")
+            if "tiles_per_segment" in routing_kwargs:
+                routing_kwargs.pop("tiles_per_segment")
 
             # Try to improve the routing path.
             routing_cost_before = routing.evaluate_cost(best_routing)
@@ -264,16 +278,21 @@ def main():
                 quantity = np.round(component.height, 3)
             bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.unit_cost, category=f"sheets-{i}", notes=url_md))
 
-    leds_material_data = {}
-    for i, (strip_name, strip) in enumerate(settings["materials"]["leds"].items()):
-        strip_length = strip["number_of_leds"] / strip["leds_per_meter"]
-        leds_material_data[strip_name] = wp3.Struct(name=strip_name,
-                                                    value=strip_length,
-                                                    cost=strip.get("cost", 0))
-
-    required_led_length = len(visible_tiles) * 6 * settings["panels"]["side_length"]
+    required_led_length = len(visible_tiles) * walls_per_tile * settings["panels"]["side_length"]
     for i, materials in enumerate(settings["assembly"]["leds"]):
-        components, cost, value = wp3.named_tree_search([leds_material_data[m] for m in materials], required_led_length)
+        error_message_base = f"Error in assembly list 'leds/{i}'."
+        led_density = settings["materials"]["leds"][materials[0]]["leds_per_meter"]
+        for m in materials[:1]:
+            if settings["materials"]["leds"][m]["leds_per_meter"] != led_density:
+                print(f"Error in assembly list 'leds/{i}'. The components "
+                      f"'{materials[0]}' and '{m}' have a different amount of "
+                      f"LEDs per meter.")
+                return
+
+        components, cost, value = wp3.named_tree_search([wp3.Struct(name=m,
+            value=settings["materials"]["leds"][m]["number_of_leds"] / settings["materials"]["leds"][m]["leds_per_meter"],
+            cost=settings["materials"]["leds"][m].get("cost", 0))
+            for m in materials], required_led_length)
         for component, quantity in components:
             url = settings["materials"]["leds"][component.name].get("url")
             url_md = f"[url link]({url})" if url is not None else ""
