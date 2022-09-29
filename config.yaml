@@ -30,19 +30,26 @@ materials:
   #     of the LED strips.
   # - url: link to purchase the article.
   leds:
-    BTF-Amazon (60x):
+    BTF Amazon (1m, 60lpm):
       number_of_leds: 60
       leds_per_meter: 60
       watts: 18.0
       cost: 16.99
       url: https://www.amazon.fr/dp/B01CDTED80/ref=redir_mobile_desktop?_encoding=UTF8&aaxitk=729c820e4b1be5ecb44cff4d0da53f66&content-id=amzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459%3Aamzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459&hsa_cr_id=8318593460202&pd_rd_plhdr=t&pd_rd_r=a79297a1-ed98-4868-bf1a-b2e6d7878817&pd_rd_w=sKxPG&pd_rd_wg=zrPeh&qid=1663607962&ref_=sbx_be_s_sparkle_mcd_asin_0_img&sr=1-1-fd947bf3-57d2-4cc9-939d-2805f92cef28&th=1
 
-    BTF-Amazon (300x):
+    BTF Amazon (5m, 60lpm):
       number_of_leds: 300
       leds_per_meter: 60
       watts: 45.0
       cost: 46.99
       url: https://www.amazon.fr/dp/B01CDTEJBG/ref=redir_mobile_desktop?_encoding=UTF8&aaxitk=729c820e4b1be5ecb44cff4d0da53f66&content-id=amzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459%3Aamzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459&hsa_cr_id=8318593460202&pd_rd_plhdr=t&pd_rd_r=a79297a1-ed98-4868-bf1a-b2e6d7878817&pd_rd_w=sKxPG&pd_rd_wg=zrPeh&qid=1663607962&ref_=sbx_be_s_sparkle_mcd_asin_0_img&sr=1-1-fd947bf3-57d2-4cc9-939d-2805f92cef28&th=1
+
+    BTF Amazon (5m, 30lpm):
+      number_of_leds: 150
+      leds_per_meter: 30
+      watts: 45.0
+      cost: 30.99
+      url: https://www.amazon.fr/dp/B01CDTECSG/ref=redir_mobile_desktop?_encoding=UTF8&aaxitk=729c820e4b1be5ecb44cff4d0da53f66&content-id=amzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459%3Aamzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459&hsa_cr_id=8318593460202&pd_rd_plhdr=t&pd_rd_r=a79297a1-ed98-4868-bf1a-b2e6d7878817&pd_rd_w=sKxPG&pd_rd_wg=zrPeh&qid=1663607962&ref_=sbx_be_s_sparkle_mcd_asin_0_img&sr=1-1-fd947bf3-57d2-4cc9-939d-2805f92cef28&th=1
 
   # Panels or sheets used to create the semi-opaque panels. Required fields:
   # - size: an array with two values, representing the size of the panel. If the
@@ -96,8 +103,8 @@ materials:
 # which is more cost effective.
 assembly:
   leds:
-    - ["BTF-Amazon (60x)", "BTF-Amazon (300x)"]
-    - ["BTF-Amazon (60x)"]
+    - ["BTF Amazon (1m, 60lpm)", "BTF Amazon (5m, 60lpm)"]
+    - ["BTF Amazon (5m, 30lpm)"]
   sheets:
     - ["shower film leroy-merlin"]
     - ["acrylic 30x40 leroy-merlin", "acrylic 40x50 leroy-merlin", "acrylic 50x70 leroy-merlin", "acrylic 60x90 leroy-merlin"]
