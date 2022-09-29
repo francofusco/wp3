@@ -1,5 +1,46 @@
 from .struct import Struct
+from .tile import get_bounding_box
 import matplotlib.pyplot as plt
+
+
+def tight_figure(tiles):
+    """Create a figure that have just enough space to contain the given tiles.
+
+    The returned figure/axes are configured so that:
+    - The size of the axes corresponds to the bounding box of the list of tiles.
+    - No horizontal/vertical ticks are shown.
+    - The horizontal and vertical unit of length is the same.
+
+    Args:
+        tiles: a list of Tile instances that must fit within the figure.
+    Returns:
+        fig: a matplotlib.figure.Figure instance.
+        ax: a matplotlib.axes.Axes instance.
+    """
+    fig, ax = plt.subplots()
+    ax.set_aspect("equal")
+    (xmin, ymin), (xmax, ymax) = get_bounding_box(tiles)
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.tick_params(which="both", bottom=False, top=False, right=False,
+                   left=False, labelbottom=False, labelleft=False)
+    ax.set_axisbelow(True)
+    fig.tight_layout()
+    return fig, ax
+
+
+def add_tiles_to_axes(tiles, ax, copy=False, patch_color=None, border_color=None):
+    """Add al tiles in the list to the given axes.
+
+    """
+    for tile in tiles:
+        if copy:
+            tile = tile.make_copy()
+        tile.add_to_axis(ax)
+        if patch_color is not None:
+            tile.patch.set_color(patch_color)
+        if border_color is not None:
+            tile.outer_patch.set_color(border_color)
 
 
 def toggle_tile_if_clicked(mouse_event, tile, axis):

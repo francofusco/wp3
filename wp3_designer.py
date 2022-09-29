@@ -58,20 +58,14 @@ def main():
     canvas_width, canvas_height = wp3.get_bounding_box_size(tiles)
 
     # Create a figure to plot the tiles.
-    fig, ax = plt.subplots()
-    ax.set_aspect("equal")
-    ax.set_xlim(0, canvas_width)
-    ax.set_ylim(0, canvas_height)
-    ax.tick_params(which="both", bottom=False, top=False, right=False,
-                   left=False, labelbottom=False, labelleft=False)
-    ax.set_axisbelow(True)
-    fig.tight_layout()
+    fig, ax = wp3.tight_figure(tiles)
 
     # Place the tiles in the plot.
+    wp3.add_tiles_to_axes(tiles, ax)
+
+    # For each tile, create an event connection that toggles its visibility if
+    # one clicks inside its patch.
     for tile in tiles:
-        # Add the current tile to the canvas, and create an event connection
-        # that toggles its visibility if one clicks inside its patch.
-        tile.add_to_axis(ax)
         fig.canvas.mpl_connect('button_press_event', lambda event, tile=tile: wp3.toggle_tile_if_clicked(event, tile, ax))
 
     # Create a connection to hide, show or toggle all tile visibilities at once
@@ -132,22 +126,11 @@ def main():
     # 3. If the user closes the routing window: exit.
     while True:
         # Create a figure to plot the tiles.
-        fig, ax = plt.subplots()
-        ax.set_aspect("equal")
-        (xmin, ymin), (xmax, ymax) = wp3.get_bounding_box(visible_tiles)
-        ax.set_xlim(xmin, xmax)
-        ax.set_ylim(ymin, ymax)
-        ax.tick_params(which="both", bottom=False, top=False, right=False,
-                       left=False, labelbottom=False, labelleft=False)
-        ax.set_axisbelow(True)
-        fig.tight_layout()
+        fig, ax = wp3.tight_figure(visible_tiles)
 
         # Add visible tiles to the created Axis instance.
-        for tile in visible_tiles:
-            tile = tile.make_copy()
-            tile.add_to_axis(ax)
-            tile.patch.set_color("white")
-            tile.outer_patch.set_color("lightgray")
+        wp3.add_tiles_to_axes(visible_tiles, ax, copy=True, patch_color="white",
+                              border_color="lightgray")
 
         # Save the content of the figure so that one can try to manually draw a
         # routing if needed.
@@ -168,13 +151,15 @@ def main():
 
         # Save the current routing into a figure, to make sure that it is safely
         # stored somewhere.
-        fig.savefig(output_dir.joinpath("wp3_routing.pdf"), bbox_inches='tight')
+        fig.savefig(output_dir.joinpath("wp3_routing.pdf"), bbox_inches='tight', dpi=500)
         plt.close("all")
 
         # Decide what to do depending on the user's choice.
         if exit_helper.reroute:
             # Read routing parameters from the YAML configuration.
             routing_kwargs = settings.extract("routing", {})
+
+            # Remove parameters that are not to be passed to Routing.optimize.
             if "cache" in routing_kwargs:
                 routing_kwargs.pop("cache")
             if "segments" in routing_kwargs:
@@ -188,8 +173,10 @@ def main():
             routing_cost_after = routing.evaluate_cost(best_routing)
             print("Cost decreased by", np.round(100 * (routing_cost_before-routing_cost_after) / routing_cost_before, 3))
         else:
+            # Routing completed!
             break
 
+    # Store current routing.
     with open(output_dir.joinpath("routing_cache.yaml"), "a") as f:
         print("cache:", best_routing.tolist(), file=f)
 
@@ -203,6 +190,7 @@ def main():
     walls_per_tile = len(visible_tiles[0].vertices())
     outer_walls = len(visible_tiles) * walls_per_tile
     inner_walls = 0
+
     # Look for all pairs of tiles, with no repetitions.
     for i, tile in enumerate(visible_tiles):
         for other in visible_tiles[i+1:]:
@@ -210,6 +198,9 @@ def main():
             if tile.adjacent(other):
                 outer_walls -= 2
                 inner_walls += 1
+
+    # Write down how many walls of each type should be printed, with their
+    # dimensions as well.
     walls_notes = f"Side Length: {np.round(1000*settings['panels']['side_length'], 2)}mm. Spacing: {np.round(1000*settings['panels']['spacing'], 2)}mm. Junction Angle: {np.round(180/walls_per_tile, 2)}deg. Remember to update the CAD accordingly and export the STL meshes to print them."
     bill_of_materials.append(wp3.BillItem(name="outer wall", quantity=outer_walls, category="3D printed", notes=walls_notes))
     bill_of_materials.append(wp3.BillItem(name="inner wall", quantity=inner_walls, category="3D printed", notes=walls_notes))
@@ -222,8 +213,11 @@ def main():
     panel_material_data = {}
 
     for i, (layer_name, layer) in enumerate(settings["materials"]["sheets"].items()):
-        fig, ax = plt.subplots()
+        # Get the size of the current sheet.
         width, height = layer["size"]
+
+        # Try to fill the given sheet with all possible variants of the same
+        # tile family.
         tilings = []
         for variant in TileClass.get_variants():
             tiling = TileClass.fit_in_sheet(len(visible_tiles), 0,
@@ -231,10 +225,17 @@ def main():
                                             variant, width, height)
             if len(tiling) > 0:
                 tilings.append(tiling)
+
+        # If no tiling was possible, just skip this sheet.
         if len(tilings) == 0:
             print("Could not fit any tile in", layer_name)
             continue
 
+        # Choose the best tiling variant. If the sheet has variable height,
+        # the best variant is the one that minimizes the height of the sheet
+        # itself. If the size is fixed, the best variant is the one that uses
+        # the least amount of material per sheet. In both cases, evaluate the
+        # height of the sheet and its cost.
         if height == np.inf:
             heights = np.array([wp3.get_bounding_box_size(tiling)[1] for tiling in tilings])
             idx = heights.argmin()
@@ -247,6 +248,8 @@ def main():
             layer_cost = layer.get("cost", 0)
             bb_height = height
 
+        # Store the details of this sheet for the cost optimization, performed
+        # later in the script.
         panel_material_data[layer_name] = wp3.Struct(name=layer_name,
                                                      value=len(tiles_layer),
                                                      cost=layer_cost,
@@ -254,23 +257,35 @@ def main():
                                                      height=bb_height,
                                                      unit_cost=layer.get("cost", 0))
 
+        # The figure is used to show how tiles should be cut from each sheet.
+        fig, ax = plt.subplots()
         ax.set_aspect("equal")
         ax.set_xlim(0, width)
         ax.set_ylim(0, bb_height)
         ax.set_title(layer_name)
+        fig.tight_layout()
 
+        # Change the visual properties of the patches edges.
         for tile in tiles_layer:
             tile.patch.set_linewidth(0.2)
             tile.patch.set_edgecolor("black")
-            tile.patch.set_facecolor("lightgray")
-            tile.add_to_axis(ax)
 
-        fig.tight_layout()
+        # Add the patches to the fgure.
+        wp3.add_tiles_to_axes(tiles_layer, ax, patch_color="lightgray")
+
+        # Save the tiling into a file.
         fig.savefig(output_dir.joinpath(f"{layer_name}.pdf"), bbox_inches='tight')
         plt.close("all")
 
+    # For each group of materials that can be used to manufacture the tiles,
+    # evaluate the cheapest combination of articles that can be purchased.
     for i, materials in enumerate(settings["assembly"]["sheets"]):
-        components, cost, value = wp3.named_tree_search([panel_material_data[m] for m in materials], len(visible_tiles))
+        # Get the list of sheets that have to be purchased, and their quantity.
+        components, cost, _ = wp3.named_tree_search([panel_material_data[m] for m in materials], len(visible_tiles))
+
+        # For each sheet type to be purchased, add a line in the bill of
+        # materials that specifies how many sheets to buy (or their length in
+        # the case of variable-length sheets).
         for component, quantity in components:
             url = settings["materials"]["sheets"][component.name].get("url")
             url_md = f"[url link]({url})" if url is not None else ""
@@ -278,9 +293,14 @@ def main():
                 quantity = np.round(component.height, 3)
             bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.unit_cost, category=f"sheets-{i}", notes=url_md))
 
-    required_led_length = len(visible_tiles) * walls_per_tile * settings["panels"]["side_length"]
+    # Process LED materials: evaluate how many LED strips have to be purchased.
     for i, materials in enumerate(settings["assembly"]["leds"]):
-        error_message_base = f"Error in assembly list 'leds/{i}'."
+        # Make sure that the list of strips is not empty.
+        if len(materials) == 0:
+            print(f"Error in assembly list 'leds/{i}': no materials specified.")
+            return
+
+        # Check if all strips in this assembly have the same LED density.
         led_density = settings["materials"]["leds"][materials[0]]["leds_per_meter"]
         for m in materials[:1]:
             if settings["materials"]["leds"][m]["leds_per_meter"] != led_density:
@@ -289,21 +309,48 @@ def main():
                       f"LEDs per meter.")
                 return
 
-        components, cost, value = wp3.named_tree_search([wp3.Struct(name=m,
+        # Evaluate how many LEDs should be inserted in a single strip and how
+        # many meters would be needed to have all tiles filled with LEDs.
+        leds_per_tile = np.floor(visible_tiles[0].perimeter() * led_density).astype(int)
+        required_led_length = len(visible_tiles) * leds_per_tile / led_density
+
+        # Get the list of strips that have to be purchased, and their quantity.
+        components, cost, _ = wp3.named_tree_search([wp3.Struct(name=m,
             value=settings["materials"]["leds"][m]["number_of_leds"] / settings["materials"]["leds"][m]["leds_per_meter"],
             cost=settings["materials"]["leds"][m].get("cost", 0))
             for m in materials], required_led_length)
+
+        # For each strip type to be purchased, add a line in the bill of
+        # materials that specifies how many to buy.
         for component, quantity in components:
+            led_notes = f"Leds per tile: {leds_per_tile}."
             url = settings["materials"]["leds"][component.name].get("url")
-            url_md = f"[url link]({url})" if url is not None else ""
-            bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=url_md))
+            if url is not None:
+                led_notes += f" [url link]({url})"
+            bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=led_notes))
+
+        # If wattage information is provided for all strips, try to estimate the
+        # total wattage required to power the LEDs and add this information to
+        # the bill of materials (as a PSU item).
         watts = sum(n*settings["materials"]["leds"][c.name].get("watts", np.nan) for c, n in components)
         if watts != np.nan:
             bill_of_materials.append(wp3.BillItem(name=f"{watts}W Power Supply Unit", category=f"leds-{i}", notes="The power has been estimated. You might need a lower wattage."))
 
-    bill_of_materials.append(wp3.BillItem(name="3 pin connectors", quantity=len(visible_tiles), category="wiring", notes="The quantity refers to male/female pairs."))
-    bill_of_materials.append(wp3.BillItem(name="Three-way electrical wire", quantity=np.round(routing.evaluate_cost(best_routing, repetition_penalty=0), 3), category="wiring", notes="This is likely an overestimation, since the length of the connectors is not taken into account."))
+        # Knowing the number of LEDs per tile, we can provide a detailed scheme
+        # of the wiring. This information is stored in a PDF document that can
+        # be viewed by the user.
+        fig, ax = wp3.tight_figure(visible_tiles)
+        wp3.add_tiles_to_axes(visible_tiles, ax, copy=True, patch_color="white",
+                              border_color="lightgray")
+        routing.plot_detailed_routing(best_routing, visible_tiles, leds_per_tile, ax)
+        fig.savefig(output_dir.joinpath(f"wp3_routing_{leds_per_tile}_leds_per_tile.pdf"), bbox_inches='tight', dpi=500)
+        plt.close("all")
 
+    # Add to the bill of materials one entry that corresponds to the number of
+    # connectors to be purchased.
+    bill_of_materials.append(wp3.BillItem(name="3 pin connectors", quantity=len(visible_tiles), category="wiring", notes="The quantity refers to male/female pairs."))
+
+    # Print the bill of materials into a file.
     wp3.BillItem.dump_to_markdown(bill_of_materials, output_dir.joinpath("bill_of_materials.md"))
 
 if __name__ == '__main__':

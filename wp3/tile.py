@@ -181,15 +181,37 @@ class Tile(object):
         raise NotImplemented("This method is abstract and must be implemented "
                              "in sub-classes.")
 
-    def perimeter(self):
+    def perimeter(self, border=0):
         """Calculate the perimeter of the tile.
 
         Returns:
             The perimeter of the tile, without considering the border.
         """
-        verts = self.vertices(border=0)
+        verts = self.vertices(border=border)
         d = np.diff(np.vstack((verts, [verts[0]])), axis=0)
         return np.sum(np.sqrt(np.einsum("ij,ij->i", d, d)))
+
+    def sample_perimeter(self, samples, first_corner, border=0):
+        """Sample points on the perimeter of a tile.
+
+        Args:
+            samples: number of sample to generate.
+            first_corner: the first sample in the sequence will be placed along
+                the perimeter right after this corner (and proceeding in
+                counter-clockwise order).
+        Returns:
+            A NumPy array with shape (samples, 2), containing the coordinates of
+            the samples.
+        """
+        verts = np.roll(self.vertices(border=border), -first_corner, axis=0)
+        verts = np.vstack((verts, [verts[0]]))
+        d = np.diff(verts, axis=0)
+        t_verts = np.concatenate(([0], np.cumsum(np.sqrt(np.einsum("ij,ij->i", d, d)))))
+        t = np.linspace(0, self.perimeter(border=border), samples + 1)[:-1]
+        t += t[1] / 2
+        x = np.interp(t, t_verts, verts[:, 0])
+        y = np.interp(t, t_verts, verts[:, 1])
+        return np.stack((x,y)).T
 
     def within(self, x_range, y_range, include_border=True, tolerance=0.0):
         """Tells if this tile fits the given rectangular domain.

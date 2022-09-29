@@ -359,7 +359,21 @@ class Routing:
         # Return the best routing found so far.
         return best_sample
 
-    def plot_routing(self, sample, tiles, ax, alpha=0.2, color="black"):
+    def get_detailed_routing_points(self, sample, tiles, vertices_per_tile):
+        segments = []
+        current_segment = np.empty((0, 2))
+
+        for i in range(self.n_tiles):
+            points = tiles[sample[0,i]].sample_perimeter(vertices_per_tile, sample[1,i], border=-1)
+            current_segment = np.vstack((current_segment, points))
+            if i in self.cuts:
+                segments.append(current_segment)
+                current_segment = np.empty((0, 2))
+
+        segments.append(current_segment)
+        return segments
+
+    def plot_routing(self, sample, tiles, ax, alpha=0.2):
         """Plot a routing sequence in a figure.
         """
         vertex_sequence = self.vertices[self.tiles[sample[0], sample[1]]]
@@ -367,14 +381,29 @@ class Routing:
         for i in range(self.n_tiles):
             tile = tiles[sample[0,i]]
             p = (1-alpha) * vertex_sequence[i] + alpha * np.array([tile.x, tile.y])
-            ax.plot(*p, "o", color=color)
+            ax.plot(*p, "o", color="black")
             if i > 0 and i-1 not in self.cuts:
                 d = p - prev_p
-                ax.arrow(*prev_p, *d, color=color, linewidth=0.5, head_width=0.01, length_includes_head=True)
+                ax.arrow(*prev_p, *d, color="black", linewidth=0.5, head_width=0.01, length_includes_head=True)
             prev_p = p
 
         for i, tile in enumerate(tiles):
             ax.text(tile.x, tile.y, str(i), color="red", horizontalalignment="center")
+
+    def plot_detailed_routing(self, sample, tiles, vertices_per_tile, ax):
+        """Plot a routing sequence in a figure.
+        """
+        segments = self.get_detailed_routing_points(sample, tiles, vertices_per_tile)
+        all_routing_points = np.vstack(segments)
+
+        for segment in segments:
+            ax.plot(segment[:, 0], segment[:, 1], linewidth=1, marker="o", markevery=[0])
+
+        for i, p in enumerate(all_routing_points):
+            ax.text(*p, str(i), color="black", horizontalalignment="center", verticalalignment="center", fontsize=4, fontweight="bold")
+
+        for i, tile in enumerate(tiles):
+            ax.text(tile.x, tile.y, str(i), color="black", horizontalalignment="center", verticalalignment="center")
 
 
 def tree_search(choices, target, sequence=None, current_value=0, current_cost=0):

@@ -1,5 +1,5 @@
 from .hexagon import Hexagon
-from .mpl import toggle_tile_if_clicked, toggle_all_tiles, wait_for_exit
+from .mpl import add_tiles_to_axes, tight_figure, toggle_tile_if_clicked, toggle_all_tiles, wait_for_exit
 from .optimization import Routing, named_tree_search
 from .rectangle import Rectangle
 from .settings import load_settings, SettingsDict, retrieve_settings_file
