@@ -8,13 +8,18 @@ NOTE: bug in YAML + scientific notation
 
 - [WP3: Wilson's Pew-Pew Panels](#wp3-wilsons-pew-pew-panels)
 - [Software dependencies](#software-dependencies)
-	- [Python / Anaconda](#python-anaconda)
 	- [FreeCAD](#freecad)
+	- [Python / Anaconda](#python-anaconda)
 - [Designing the panels](#designing-the-panels)
-	- [Launching `wp3_designer.py`](#launching-wp3designerpy)
-	- [`wp3_designer.py`: quick overview](#wp3designerpy-quick-overview)
+	- [Launching the designer](#launching-the-designer)
+		- [Using the `wp3_designer.exe` executable](#using-the-wp3designerexe-executable)
+		- [Launching `wp3_designer.py` from the command line](#launching-wp3designerpy-from-the-command-line)
+	- [`wp3_designer`: quick overview](#wp3designer-quick-overview)
+		- [Choosing panel locations](#choosing-panel-locations)
+		- [Routing](#routing)
 	- [Configuration of the designer](#configuration-of-the-designer)
 		- [Panels](#panels)
+		- [Routing](#routing)
 		- [Materials](#materials)
 		- [Assembly](#assembly)
 	- [Updating the CAD](#updating-the-cad)
@@ -25,7 +30,7 @@ NOTE: bug in YAML + scientific notation
 
 # WP3: Wilson's Pew-Pew Panels
 
-This project provides a modular design for hexagonal A-RGB panels. The project includes a python script (`wp3_designer.py`) that allows to design a custom composition of panels and then outputs a bill of materials. A parametric CAD file (that can be edited in [FreeCAD](https://www.freecadweb.org/)) allows to quickly generate a STL file with appropriate dimensions to 3D print the edges of the panels.
+This project provides a modular design for A-RGB panels. The project includes a python script (`wp3_designer.py`) that allows to design a custom composition of panels and then outputs a bill of materials. A parametric CAD file (that can be edited in [FreeCAD](https://www.freecadweb.org/)) allows to quickly generate STL files with appropriate dimensions to 3D print the edges of the panels.
 
 These panels are mainly meant to be used with [SignalRGB](https://www.signalrgb.com/), which runs under Windows. Therefore, the software and the instructions below have been created/tested in such environment. I am 99% confident that the same can be done in Ubuntu -the 1% of in-confidence is simply due to the fact that I have not tested it. However, I know and have used the tools individually in Ubuntu at some point of my life. I have no idea in other environments, such as MacOS, but feel free to give it a try!
 
@@ -40,7 +45,7 @@ This should be very easy: just head to the [FreeCAD download page](https://www.f
 
 ## Python / Anaconda
 
-| Note: this is an optional dependency that is required only if you wish to run the script from its source. You can otherwise just run the "compiled" script (see the section [Launching `wp3_designer.py`](#launching-wp3designerpy)). |
+| Note: this is an optional dependency that is required only if you wish to run the script from its source. You can otherwise just run the "compiled" script (see the section **ADD LINK TO THE SECTION HERE**). |
 | --- |
 
 The `wp3_designer.py` script requires a valid Python installation with very few additional packages. If you know how to use Python already, just make sure that the packages `Matplotlib`, `NumPy` and `PyYAML` are installed and skip to the next section. If you do not know how to install Python, or you are not entirely sure, here is a quick and simple way based on [Anaconda](https://www.anaconda.com/).
@@ -58,7 +63,7 @@ The `wp3_designer.py` script requires a valid Python installation with very few 
 
 ![imgs/anaconda.gif](imgs/anaconda.gif)
 
-Python is now configured! You can close the Anaconda navigator and proceed to the next step. If you are having troubles
+Python is now configured! You can close the Anaconda navigator and proceed to the next step.
 
 
 # Designing the panels
@@ -81,7 +86,7 @@ To start the designer, you have two options:
 
 For self: compile using:
 ```
-pyinstaller wp3_designer.py --onefile --splash imgs\cad_blueprint.png
+pyinstaller wp3_designer.py --onefile
 ```
 
 
@@ -94,14 +99,14 @@ If you already used Python before, this should sound very familiar. If you did n
 1. Select the environment that you previously created.
 1. Once it has bee activated, click on the green button with the "play" icon, next to the environment name.
 1. Select the option *Open Terminal* (it should be the first one).
-1. A command prompt should open. Go to the location of this project using the `cd` command followed by the path to the directory that contains it. The command might look like the following:
-```bash
-cd C:\Users\franco\Documents\programming\wp3
-```
+1. A command prompt should open. Go to the location of this project using the `cd` command followed by the path to the directory that contains it. The command might look like `cd C:\Users\username\Documents\wp3`.
 1. Now type `python wp3_designer.py`. That should be all!
 
 
 ## `wp3_designer`: quick overview
+
+
+### Choosing panel locations
 
 After launching the script, a window should open, that looks like the following:
 
@@ -115,7 +120,19 @@ This is the design window, that allows you to create a custom composition of pan
 
 ![imgs/wp3_designer_toggle_all.gif](imgs/wp3_designer_toggle_all.gif)
 
-Once you are satisfied with a design, just close the window. The program will now start a routing step, in which it tries to determine a nice placement for the cables, so that you do not need an exaggerate amount of wire and the back of the panels does not become a tangled mess. The routing process starts with a random path of wire from one panel to the other, you can press the space bar to let the algorithm do its job. It takes a while, but the first run makes a huge difference. After the routing has been optimized, it is shown again for validation. Keep in mind that the implemented algorithm is very simple and sometimes struggles to find nice solutions. To overcome its limitation, you can repeat the process as many times as you want (just hit the space bar again) or manually adjust the routing when assembling the panels. Here is an example of the routing, before and after the algorithm did its job:
+Once you are satisfied with a design, just close the window.
+
+
+### Routing
+
+The program will now start a routing step, in which it tries to determine a nice placement for the cables, so that you do not need an exaggerate amount of wire and the back of the panels does not become a tangled mess. In particular, the panels are designed so that a short LED strip can be glued in their inside and connectors can be soldered at the ends of a strip to provide power and carry the signal. The connectors are positioned in one of the vertices of the polygonal shapes.
+
+To provide power and control all LEDs, it is therefore necessary to connect all of them
+
+To achieve this goal, a very simple optimization algorithm has been developed.
+
+
+The routing process starts with a random path of wire from one panel to the other, you can press the space bar to let the algorithm do its job. It takes a while, but the first run makes a huge difference. After the routing has been optimized, it is shown again for validation. Keep in mind that the implemented algorithm is very simple and sometimes struggles to find nice solutions. To overcome its limitation, you can repeat the process as many times as you want (just hit the space bar again) or manually adjust the routing when assembling the panels. Here is an example of the routing, before and after the algorithm did its job:
 
 ![imgs/routing_pre.png](imgs/routing_pre.png)
 ![imgs/routing_post.png](imgs/routing_post.png)
