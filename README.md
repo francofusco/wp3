@@ -12,12 +12,12 @@
 - [WP3: Wilson's Pew-Pew Panels](#wp3-wilsons-pew-pew-panels)
 - [Software dependencies](#software-dependencies)
 	- [FreeCAD](#freecad)
-	- [Python / Anaconda](#python-anaconda)
+	- [Python and Anaconda](#python-and-anaconda)
 - [Designing the panels](#designing-the-panels)
 	- [Launching the designer](#launching-the-designer)
-		- [Using the `wp3_designer.exe` executable](#using-the-wp3designerexe-executable)
-		- [Launching `wp3_designer.py` from the command line](#launching-wp3designerpy-from-the-command-line)
-	- [`wp3_designer`: quick overview](#wp3designer-quick-overview)
+		- [Using the wp3_designer.exe executable](#using-the-wp3designerexe-executable)
+		- [Launching wp3_designer.py from the command line](#launching-wp3designerpy-from-the-command-line)
+	- [Quick overview of wp3_designer](#quick-overview-of-wp3designer)
 		- [Choosing panel locations](#choosing-panel-locations)
 		- [Routing](#routing)
 		- [Materials and result files](#materials-and-result-files)
@@ -60,7 +60,7 @@ In my original vision, these panels are meant to be used with [SignalRGB](https:
 Installing the program should be very easy: just head to the [FreeCAD download page](https://www.freecadweb.org/downloads.php) and download the installer. Launch it and install the software.
 
 
-## Python / Anaconda
+## Python and Anaconda
 
 | Note: this is an optional dependency that is required only if you run the script from its source. You can otherwise just run the "compiled" script (see the section **ADD LINK TO THE SECTION HERE**). |
 | --- |
@@ -98,27 +98,27 @@ To start the designer, you have two options:
 - Running the script itself from a terminal. This might be interesting if you plan to modify the script at some point.
 
 
-### Using the `wp3_designer.exe` executable
+### Using the wp3_designer.exe executable
 
 First of all, download the archive [wp3_designer.zip](https://github.com/francofusco/wp3/releases/latest/download/wp3_designer.zip), which contains two files: the executable `wp3_designer.exe` and a YAML configuration file. Extract them in a location of your choice and then double click on the executable. It will take a moment for the program to start, but that should be all!
 
 If you wish to use an older version, check the [releases page](https://github.com/francofusco/wp3/releases) and download the `wp3_designer.zip` from the corresponding assets.
 
 
-### Launching `wp3_designer.py` from the command line
+### Launching wp3_designer.py from the command line
 
 If you already used Python before, this should sound very familiar. If you did not, I hope the procedure is clear and detailed enough to make it easy and painless. Anyway, here is what you need to do:
 
 1. [Download the repository](https://github.com/francofusco/wp3/archive/refs/heads/main.zip), if you haven't done that already. If you downloaded the source code using this link, make sure to extract the content of the archive in a location of your choice!
 1. Open Anaconda Navigator and on the left, select *Environments*.
-1. Select the environment that you previously created (see [Python / Anaconda](#python-anaconda)).
+1. Select the environment that you previously created (see [Python and Anaconda](#python-and-anaconda)).
 1. Once it has been activated, click on the green button with the "play" icon, next to the environment name.
 1. Select the option *Open Terminal* (it should be the first one).
 1. A command prompt should open. Go to the location where you stored the source code using the `cd` command followed by the path to the directory that contains it. The command might look like `cd C:\Users\username\Documents\wp3`.
 1. Now type `python wp3_designer.py`.
 
 
-## `wp3_designer`: quick overview
+## Quick overview of wp3_designer
 
 
 ### Choosing panel locations
