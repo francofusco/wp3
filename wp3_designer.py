@@ -275,7 +275,7 @@ def main():
         wp3.add_tiles_to_axes(tiles_layer, ax, patch_color="lightgray")
 
         # Save the tiling into a file.
-        fig.savefig(output_dir.joinpath(f"{layer_name}.pdf"), bbox_inches='tight')
+        fig.savefig(output_dir.joinpath(f"tiling_{layer_name}.pdf"), bbox_inches='tight')
         plt.close("all")
 
     # For each group of materials that can be used to manufacture the tiles,
