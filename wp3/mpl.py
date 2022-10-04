@@ -38,9 +38,9 @@ def add_tiles_to_axes(tiles, ax, copy=False, patch_color=None, border_color=None
             tile = tile.make_copy()
         tile.add_to_axis(ax)
         if patch_color is not None:
-            tile.patch.set_color(patch_color)
+            tile.patch.set_facecolor(patch_color)
         if border_color is not None:
-            tile.outer_patch.set_color(border_color)
+            tile.outer_patch.set_facecolor(border_color)
 
 
 def toggle_tile_if_clicked(mouse_event, tile, axis):
