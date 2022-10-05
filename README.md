@@ -15,9 +15,9 @@
 	- [Python and Anaconda](#python-and-anaconda)
 - [Designing the panels](#designing-the-panels)
 	- [Launching the designer](#launching-the-designer)
-		- [Using the wp3_designer.exe executable](#using-the-wp3designerexe-executable)
-		- [Launching wp3_designer.py from the command line](#launching-wp3designerpy-from-the-command-line)
-	- [Quick overview of wp3_designer](#quick-overview-of-wp3designer)
+		- [Using the designer executable](#using-the-designer-executable)
+		- [Launching the designer from the command line](#launching-the-designer-from-the-command-line)
+	- [Quick overview of the designer](#quick-overview-of-the-designer)
 		- [Choosing panel locations](#choosing-panel-locations)
 		- [Routing](#routing)
 		- [Materials and result files](#materials-and-result-files)
@@ -98,14 +98,14 @@ To start the designer, you have two options:
 - Running the script itself from a terminal. This might be interesting if you plan to modify the script at some point.
 
 
-### Using the wp3_designer.exe executable
+### Using the designer executable
 
 First of all, download the archive [wp3_designer.zip](https://github.com/francofusco/wp3/releases/latest/download/wp3_designer.zip), which contains two files: the executable `wp3_designer.exe` and a YAML configuration file. Extract them in a location of your choice and then double click on the executable. It will take a moment for the program to start, but that should be all!
 
 If you wish to use an older version, check the [releases page](https://github.com/francofusco/wp3/releases) and download the `wp3_designer.zip` from the corresponding assets.
 
 
-### Launching wp3_designer.py from the command line
+### Launching the designer from the command line
 
 If you already used Python before, this should sound very familiar. If you did not, I hope the procedure is clear and detailed enough to make it easy and painless. Anyway, here is what you need to do:
 
@@ -118,7 +118,7 @@ If you already used Python before, this should sound very familiar. If you did n
 1. Now type `python wp3_designer.py`.
 
 
-## Quick overview of wp3_designer
+## Quick overview of the designer
 
 
 ### Choosing panel locations
