@@ -1,8 +1,6 @@
 **TODO**
 
 - Fix this README
-- Explain the bug in YAML when using scientific notation
-- CAD: allow to change the angle depending on the type of panel.
 - Explain how to use the panels in SignalRGB using a [raspberry](https://srgbmods.net/picoled/)
 
 **TABLE OF CONTENTS**
@@ -62,7 +60,7 @@ Installing the program should be very easy: just head to the [FreeCAD download p
 
 ## Python and Anaconda
 
-| Note: this is an optional dependency that is required only if you run the script from its source. You can otherwise just run the "compiled" script (see the section **ADD LINK TO THE SECTION HERE**). |
+| Note: this is an optional dependency that is required only if you run the script from its source. You can otherwise just run the "compiled" script (see the section [Using the designer executable](#using-the-designer-executable)). |
 | --- |
 
 The `wp3_designer.py` script requires a valid Python installation with very few additional packages. If you know how to use Python already, just make sure that the packages `Matplotlib`, `NumPy` and `PyYAML` are installed and skip to the next section. If you do not know how to install Python, or you are not entirely sure, in the following there is a quick and simple way based on [Anaconda](https://www.anaconda.com/). These steps have been tested in Windows, but they should be very similar under Ubuntu and MacOS. In addition, if you know how to use `pip`, you can do pretty much the same by `pip install`ing the required packages from a terminal, without using Anaconda at all. As best practice, make sure to use `venv` or `virtualenv` to create a virtual environment to contain the packages and not mess with your local installation.
@@ -225,9 +223,12 @@ Last but not least, the designer produces a file, `design_info/bill_of_materials
 
 ## Configuration of the designer
 
-Describe how to change the parameters in `config.yaml`.
+The designer can be customized by editing a YAML configuration file, `config.yaml`. At startup, the designer will look for it in the current folder. If the file is missing, it will open a file dialog to let the user select the file manually.
 
-Note about scientific notation in PyYAML (bug that requires the format `1.0e-2` instead of `1e-2`).
+If you are unfamiliar with YAML, have a look at the [Wikipedia page](https://en.wikipedia.org/wiki/YAML) or just do a web search.
+
+| There is a bug in PyYAML related to scientific notation. If you want to write a number such as `0.01`, you might want to write it as `1e-2`. However, due to the bug you must include the decimal point in the base: `1.0e-2`. |
+| --- |
 
 
 ### Panels settings
@@ -236,12 +237,12 @@ Grouped under `panels`.
 
 | Parameter | Type | Description |
 | :-------: | :--: | ----------- |
+| `type` | `str` | Type of each tile. It should correspond to the name of one of the `Tile` subclasses (`Triangle`, `Rectangle` or `Hexagon`). Optionally, the name can be followed by a `#` and an integer that identifies the variant of the tile. As an example, you might write `type: Hexagon#1` or `type: Triangle` (which is equivalent to `type: Triangle#0`). |
 | `rows` | `int` | Number of rows in the designer area. |
 | `columns`| `int` | Number of columns in the designer area. |
-| `side_length` | `float` | Length of a hexagonal tile, in meters. |
-| `spacing` | `float` | Distance between the sides of two adjacent hexagonal tiles, in meters. |
-| `vertical_stacking` | `bool` | Orientation of the hexagonal tiles. If `True`, then the hexagons are flat on the top and bottom, and pointy on the right and left. If `False`, it is the opposite. |
-| `initial_tiling` | `array` | This parameter allows to load a custom design on startup. After generating a composition of panels, the designer will print in the console an array to be copied verbatim in this parameter. The array is just a list of row-column pairs corresponding to hexagons that should be visible on launch. |
+| `side_length` | `float` | Lateral size of the tiles, in meters. |
+| `spacing` | `float` | Distance between the sides of two adjacent tiles, in meters. |
+| `initial_tiling` | `array` | Optional. This parameter allows to load a custom design on startup. The array is just a list of row-column pairs corresponding to tiles that should be visible on launch. After generating a composition of panels, the designer stores its corresponding array in a file named `design_info/initial_tiling.yaml`. Once you have created the design of your choice, open this file and copy its last line verbatim in your `config.yaml`. Note that `design_info/initial_tiling.yaml` contains all the tilings of each of your last runs, in chronological order (which is why you should pick the last line after having created your target design). |
 
 
 ### Routing settings
@@ -250,19 +251,37 @@ Grouped under `routing`.
 
 | Parameter | Type | Description |
 | :-------: | :--: | ----------- |
-| `max_attempts`| `int` | Number of columns in the designer area. |
-| `improvement_steps` | `float` | Length of a hexagonal tile, in meters. |
-| `cache` | `int` | Number of rows in the designer area. |
+| `segments` | `int` | Optional. Number of segments to be used in the routing procedure. Cannot be given if `tiles_per_segment` is specified. |
+| `tiles_per_segment` | `int` | Optional. Allows to use multiple segments in the routing, by specifying the maximum number of tiles to be traversed in each segment. Cannot be given if `segments` is specified. |
+| `cache` | `array` | Optional. This parameter allows to load on startup a routing that was found in a previous run, rather than starting from a random guess. The array contains two lists: the first one being the indices of the traversed tiles and the second one telling on which vertex of each tile a connector is placed. Every time a routing is determined, the designer stores its corresponding array in a file named `design_info/routing_cache.yaml`. Once you have found a good routing for the design of your choice, you can open this file and copy its last line verbatim in your `config.yaml` to load it the next time. Note that `design_info/routing_cache.yaml` contains all the routings of each of your last runs, in chronological order (which is why you should pick the last line after having found the desired routing). |
+| `max_iterations`| `int` | Optional. The routing algorithm works by generating random samples and trying to improve them. This parameter decides how many samples to generate in total. |
+| `attemps_per_improvement`| `int` | Optional. The routing algorithm works by generating random samples and trying to improve them by random mutations. This parameter decides how many unsuccessful mutations can be attempted before considering a random sample as improved. |
+| `random_start_probability`| `float` | Optional. When generating candidates for improvement, the algorithm will either create a random sample or select the current optimal solution and try again to improve it with more random mutations. This parameter provides the probability of generating random samples instead of selecting the current best. You should probably give it a value between `0.9` and `1.0`. |
+| `max_swap_distance`| `int` | Optional. One of the possible mutations that is generated consist in swapping the order we visit two tiles. This parameter tells how farther the tiles can be. |
+| `mixed_mutations`| `int` | Optional. The algorithm performs mutations by selecting a tile and performing two distinct types of alterations: (1) swap its order of visit with all tiles within `max_swap_distance` and (2) change the vertex where its connector is located. In addition, a certain number of mixed mutations can be generated, in which both alterations are performed at the same time. Since the total amount of combinations is way too large for brute forcing, only a certain number of mixed mutations (controlled by this parameter) is selected. |
 
 
 ### Materials settings
+
+Materials come in two types: sheets and LED strips. Each of them is grouped in a specific namespace, ie, `materials/leds` and `materials/sheets`. In both cases, creating a new material requires to add a new namespace that is used as name for the material, and populate it with the required parameters. As an example, if you wish to add two LED strips named `Adafruit NeoPixel` and `WS2812B strip found on Amazon`, you can do it via:
+
+```YAML
+materials:
+	leds:
+		Adafruit NeoPixel:
+			number_of_leds: 60
+			...
+		WS2812B strip found on Amazon:
+			number_of_leds: 150
+			...
+```
 
 Grouped under `materials/leds/strip_name`. Each entry should have:
 
 | Parameter | Type | Description |
 | :-------: | :--: | ----------- |
 | `number_of_leds` | `int` | Number of LEDs in the strip. |
-| `leds_per_meter`| `int` or `float` | LEDs per meter in the strip. |
+| `leds_per_meter`| `int` or `float` | LEDs per meter in the strip. It might sound obvious, but if you know the length of the strip you can calculate the density as *number of LEDs* / *length of the strip*. |
 | `watts` | `float` | Optional. Power consumption of the strip. |
 | `cost` | `float` | Optional. Cost of the strip. |
 | `url` | `str` | Optional. Link to purchase the strip. |
@@ -271,13 +290,50 @@ Grouped under `materials/sheets/sheet_name`. Each entry should have:
 
 | Parameter | Type | Description |
 | :-------: | :--: | ----------- |
-| `size` | `[float, float]` | Width and height/length of the sheet. If a sheet is sold with variable height/length, you can replace it with `inf` and the designer will select an appropriate size. |
-| `cost` | `float` | Optional. Cost of the sheet. If the height/length of the sheet is `inf`, then the cost is assumed to be per unit of length. |
+| `size` | `[float, float]` | Width and height (length) of the sheet. If a sheet is sold with variable height (length), you can replace it with `inf` and the designer will select an appropriate size. As an example, `size: [30.0e-2, 40.0e-2]` specifies a sheet that is 30cm large and 40cm long, while `size: [30.0e-2, inf]` specifies a sheet that is 30cm large and with variable height (length). **Do not pass `inf` as width**, it will break the designer. |
+| `cost` | `float` | Optional. Cost of the sheet, either per unit (if both sizes are fixed) or per unit of length (if the height/length is `inf`). |
+| `url` | `str` | Optional. Link to purchase the sheet. |
 
 
 ### Assembly settings
 
-Explain the entries under `assembly/leds` and `assembly/sheets`.
+The parameters under the namespace `materials` is just a list of available materials, but you also need to instruct the designer how to combine them. The way to do it is by adding a series of lists under of the namespaces `assembly/leds` and `assembly/sheets`. The elements of these lists should be material names declared before.
+
+Assemblies are best explained via an example. Say that you found 4 kinds of strips:
+- `strip 1` has 30 LEDs and a density of 30 LEDs/m;
+- `strip 2` has 60 LEDs and a density of 30 LEDs/m;
+- `strip 3` has 60 LEDs and a density of 60 LEDs/m;
+- `strip 4` has 300 LEDs and a density of 60 LEDs/m.
+
+We can ask the designer to evaluate how many strips would be needed if we wanted our LED density to be 30 LEDs/m by adding the array `["strip 1", "strip 2"]` as an entry in `assembly/leds`:
+
+```YAML
+assembly:
+	leds:
+		- ["strip 1", "strip 2"]
+```
+
+However, we might want to use strips with 60 LEDs/m instead. In this case, just add the entry `["strip 3", "strip 4"]` as well, in a new line:
+
+```YAML
+assembly:
+	leds:
+		- ["strip 1", "strip 2"]
+		- ["strip 3", "strip 4"]
+```
+
+The designer will produce the files for both alternatives and it will be your choice which one to use.
+
+Another use case of assemblies is when multiple materials are needed to manufacture a component. As an example, I decided to create the tiles using transparent plexiglass covered with a semi-opaque film. In this case, I need the designer to tell me how many plexiglass panels to buy, but also how long the opaque film should be to cover the whole surface. My configuration therefore looks like the following:
+
+```YAML
+assembly:
+	sheets:
+		- ["acrylic 1", "acrylic 2"]
+		- ["opaque film"]
+```
+
+The first list has multiple items because plexiglass can be purchased in sheets of different, but fixed, sizes. The second list has only one item since the film is sold with variable length and I want the designer to just tell me how much of it I need.
 
 
 ## Updating the CAD
@@ -286,12 +342,12 @@ The provided CAD file is parametric, meaning that you can change some values and
 
 ![imgs/cad_blueprint.png](imgs/cad_blueprint.png)
 
-Green measures represent parameters that can be changed in FreeCAD to customize the component. In principle, you should just update the parameters *Side Length* and *Spacing* to reflect the choices you made for your panels, but you can play around with the others as well if you want to.
+Green measures represent parameters that can be changed in FreeCAD to customize the component. In principle, you should just update the parameters *Side Length*, *Spacing* and *Junction Angle* (not shown in the sketch) to reflect the choices you made for your panels, but you can play around with the others as well if you want to.
 
 Whatever your decision, to update the CAD start by opening the file `cad/wall.FCStd` in FreeCAD. Now, follow these steps:
 
 1. On the left, you should be able to locate a spreadsheet named *parameters*. Double click on it to open the spreadsheet view.
-1. You can now change the parameters as needed. As mentioned, you probably just need to update *Side Length* and *Spacing* (and perhaps *Plexiglass Thickness* depending on the plexiglass sheets that you are going to purchase).
+1. You can now change the parameters as needed. As mentioned, you probably just need to update *Side Length*, *Spacing* and *Junction Angle* (and perhaps *Plexiglass Thickness* depending on the plexiglass sheets that you are going to purchase). The correct values that you should enter can be found in the bill of materials.
 1. Back in the combo view (the menu on the left), select the object named *inner-wall* by double clicking on it.
 1. Go to *File/Export* and select *STL Mesh (\*.stl)* as file type. Give it the name *inner-wall.stl* and export it.
 1. Do the same with the *outer-wall* body, exporting as *outer-wall.stl*.
