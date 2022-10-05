@@ -276,7 +276,7 @@ class Routing:
             return sample, cost
 
     def optimize(self, best_sample=None, max_iterations=100,
-                 attemps_per_improvement=100, random_start_probability=0.99,
+                 attemps_per_improvement=100, random_start_probability=0.9,
                  max_swap_distance=10, mixed_mutations=10,
                  progressbar_length=30, progressbar_char="#",
                  percentage_precision=0):

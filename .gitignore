@@ -3,6 +3,8 @@ build/
 design_info/
 dist/
 wp3_designer.exe
+wp3_designer.zip
+cad/*.FCStd1
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

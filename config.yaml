@@ -1,34 +1,15 @@
-# Geometry of the panels. The side length corresponds to the size of a single
-# hexagon, while the spacing is the distance between adjacent hexagons. The
 panels:
-  # Type of the tile. You can optionally provide a variant by writing #n just
-  # after it, with n being the number of the variant.
   type: Hexagon#0
-  # Size of a single hexagon.
-  side_length: 5.0e-2
-  # Distance between adjacent hexagons.
-  spacing: 5.0e-3
-  # Dimensions of the design area, in rows and columns.
   rows: 10
   columns: 19
-  # Optional array of (row, column) coordinates of panels that should be visible
-  # in the canvas. If missing, all panels are initially visible.
+  side_length: 5.0e-2
+  spacing: 5.0e-3
   initial_tiling: [[3, 7], [3, 11], [4, 8], [4, 10], [4, 7], [4, 9], [4, 11], [5, 6], [5, 8], [5, 10], [5, 12], [5, 7], [5, 9], [5, 11], [6, 8], [6, 10], [6, 7], [6, 11]]
 
 routing:
   tiles_per_segment: 5
 
-# List of available materials, grouped by category.
 materials:
-  # Led strips. Required fields:
-  # - number_of_leds
-  # - leds_per_meter
-  # Optional fields:
-  # - watts: power consumed by each strip; if given, it allows to calculate the
-  #     power required for the PSU.
-  # - cost: cost of the strip; if given, it allows to calculate the total cost
-  #     of the LED strips.
-  # - url: link to purchase the article.
   leds:
     BTF Amazon (1m, 60lpm):
       number_of_leds: 60
@@ -51,23 +32,7 @@ materials:
       cost: 30.99
       url: https://www.amazon.fr/dp/B01CDTECSG/ref=redir_mobile_desktop?_encoding=UTF8&aaxitk=729c820e4b1be5ecb44cff4d0da53f66&content-id=amzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459%3Aamzn1.sym.962b535b-a8b7-499f-8ba5-164fe04b0459&hsa_cr_id=8318593460202&pd_rd_plhdr=t&pd_rd_r=a79297a1-ed98-4868-bf1a-b2e6d7878817&pd_rd_w=sKxPG&pd_rd_wg=zrPeh&qid=1663607962&ref_=sbx_be_s_sparkle_mcd_asin_0_img&sr=1-1-fd947bf3-57d2-4cc9-939d-2805f92cef28&th=1
 
-  # Panels or sheets used to create the semi-opaque panels. Required fields:
-  # - size: an array with two values, representing the size of the panel. If the
-  #     panel or sheet is not sold in a predetermined size, you can give a fixed
-  #     width and the value inf as height/length.
-  # Optional fields:
-  # - cost: cost of the panel, either per unit (if both sizes are fixed) or per
-  #     unit of length (if the height/length is inf).
-  # - url: link to purchase the article.
   sheets:
-    # shower film bricoman:
-    #   size: [45.0e-2, inf]
-    #   cost: 12.0
-
-    # small acrylic bricoman:
-    #   size: [30.0e-2, 40.0e-2]
-    #   cost: 10.00
-
     acrylic 30x40 leroy-merlin:
       size: [30.0e-2, 40.0e-2]
       cost: 4.60
@@ -88,19 +53,6 @@ materials:
       size: [250.0e-2, 90.0e-2]
       cost: 29.90
 
-# The following allows to create a list of requirements to calculate how much
-# materials should be purchased. As an example, if LED strips are sold in two
-# variants with 100 or 500 LEDs, and the project requires 600 LEDs, one could
-# buy 6 LED strips with 100 LEDs, or 2 with 500 LEDs, or 1 with 100 and one with
-# 500. The program will evaluate all possibilities and suggest the optimal one,
-# using these criteria (in descending priority): minimize the total cost,
-# minimize the excess of material, minimize the number of articles. For each
-# category of materials, you can add one entry as an array of items to be
-# considered to fulfill requirements.
-# You can create, for a same category, multiple arrays. Each of them will be
-# processed separately. As an example, you could create two arrays for LED
-# strips, one with items that feature 60 LEDs/m and one with 30 LEDs/m, to see
-# which is more cost effective.
 assembly:
   leds:
     - ["BTF Amazon (1m, 60lpm)", "BTF Amazon (5m, 60lpm)"]

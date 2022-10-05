@@ -1,3 +1,4 @@
+import json
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
@@ -274,7 +275,7 @@ def main():
         wp3.add_tiles_to_axes(tiles_layer, ax, patch_color="lightgray")
 
         # Save the tiling into a file.
-        fig.savefig(output_dir.joinpath(f"{layer_name}.pdf"), bbox_inches='tight')
+        fig.savefig(output_dir.joinpath(f"tiling_{layer_name}.pdf"), bbox_inches='tight')
         plt.close("all")
 
     # For each group of materials that can be used to manufacture the tiles,
@@ -345,6 +346,44 @@ def main():
         routing.plot_detailed_routing(best_routing, visible_tiles, leds_per_tile, ax)
         fig.savefig(output_dir.joinpath(f"wp3_routing_{leds_per_tile}_leds_per_tile.pdf"), bbox_inches='tight', dpi=500)
         plt.close("all")
+
+        # Generate a component file for SignalRGB. The component in the
+        # "Layouts" page will be a rectangle with maximum dimenions equal to
+        # 100 - an arbitrary number that seems reasonable on my PC.
+        width, height = wp3.get_bounding_box_size(visible_tiles)
+        scale = 100 / max(width, height)
+        width *= scale
+        height *= scale
+        dev_name = f"WP3 {tile_type_specs[0]} {leds_per_tile} LEDs per tile"
+        signal_rgb_data = {
+            "ProductName": dev_name,
+            "DisplayName": dev_name,
+            "Brand": "WP3",
+            "Type": "custom",
+            "LedCount": int(len(visible_tiles) * leds_per_tile),
+            "Width": int(width),
+            "Height": int(height),
+            "LedMapping": [],
+            "LedCoordinates": [],
+            "LedNames": []
+        }
+
+        # Get the origin of the bounding box, to properly shift LEDs towards the
+        # bottom-left corner.
+        origin, _ = wp3.get_bounding_box(visible_tiles)
+
+        # Store, for each LED in the routing path, its name and coordinates.
+        for segment in routing.get_detailed_routing_points(best_routing, visible_tiles, leds_per_tile):
+            for led in segment:
+                led_idx = len(signal_rgb_data["LedMapping"])
+                signal_rgb_data["LedMapping"].append(led_idx)
+                signal_rgb_data["LedCoordinates"].append(np.round((led-origin)*scale).astype(int).tolist())
+                signal_rgb_data["LedNames"].append(f"Led {led_idx} (tile {led_idx//leds_per_tile})")
+
+        # Save the generated data into a JSON file that can be imported into
+        # SignalRGB to define the custom LED geometry.
+        with open(output_dir.joinpath(f"wp3_signal_rgb_{leds_per_tile}_leds_per_tile.json"), "w") as f:
+            json.dump(signal_rgb_data, f)
 
     # Add to the bill of materials one entry that corresponds to the number of
     # connectors to be purchased.
