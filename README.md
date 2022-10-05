@@ -1,8 +1,3 @@
-**TODO**
-
-- Fix this README
-- Explain how to use the panels in SignalRGB using a [raspberry](https://srgbmods.net/picoled/)
-
 **TABLE OF CONTENTS**
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
@@ -267,13 +262,13 @@ Materials come in two types: sheets and LED strips. Each of them is grouped in a
 
 ```YAML
 materials:
-	leds:
-		Adafruit NeoPixel:
-			number_of_leds: 60
-			...
-		WS2812B strip found on Amazon:
-			number_of_leds: 150
-			...
+  leds:
+    Adafruit NeoPixel:
+      number_of_leds: 60
+      ...
+    WS2812B strip found on Amazon:
+      number_of_leds: 150
+      ...
 ```
 
 Grouped under `materials/leds/strip_name`. Each entry should have:
@@ -309,17 +304,17 @@ We can ask the designer to evaluate how many strips would be needed if we wanted
 
 ```YAML
 assembly:
-	leds:
-		- ["strip 1", "strip 2"]
+  leds:
+    - ["strip 1", "strip 2"]
 ```
 
 However, we might want to use strips with 60 LEDs/m instead. In this case, just add the entry `["strip 3", "strip 4"]` as well, in a new line:
 
 ```YAML
 assembly:
-	leds:
-		- ["strip 1", "strip 2"]
-		- ["strip 3", "strip 4"]
+  leds:
+    - ["strip 1", "strip 2"]
+    - ["strip 3", "strip 4"]
 ```
 
 The designer will produce the files for both alternatives and it will be your choice which one to use.
@@ -328,9 +323,9 @@ Another use case of assemblies is when multiple materials are needed to manufact
 
 ```YAML
 assembly:
-	sheets:
-		- ["acrylic 1", "acrylic 2"]
-		- ["opaque film"]
+  sheets:
+    - ["acrylic 1", "acrylic 2"]
+    - ["opaque film"]
 ```
 
 The first list has multiple items because plexiglass can be purchased in sheets of different, but fixed, sizes. The second list has only one item since the film is sold with variable length and I want the designer to just tell me how much of it I need.
