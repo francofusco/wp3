@@ -21,12 +21,13 @@
 	- [Configuration of the designer](#configuration-of-the-designer)
 		- [Panels settings](#panels-settings)
 		- [Routing settings](#routing-settings)
+		- [SignalRGB components settings](#signalrgb-components-settings)
 		- [Materials settings](#materials-settings)
 		- [Assembly settings](#assembly-settings)
-	- [Updating the CAD](#updating-the-cad)
 - [Building the panels](#building-the-panels)
 	- [Purchasing the components](#purchasing-the-components)
-	- [3D-printing the walls](#3d-printing-the-walls)
+	- [Updating the CAD and 3D-printing the walls](#updating-the-cad-and-3d-printing-the-walls)
+	- [Walls made out of cardboard as a cheap alternative](#walls-made-out-of-cardboard-as-a-cheap-alternative)
 	- [Assembling the panels](#assembling-the-panels)
 	- [SignalRGB integration](#signalrgb-integration)
 		- [Preparing the Pico controller](#preparing-the-pico-controller)
@@ -47,7 +48,10 @@ In my original vision, these panels are meant to be used with [SignalRGB](https:
 
 ## FreeCAD
 
-| Note: This software is used to export CAD files to be printed in 3D. If you are planning to create the supporting walls in a different way, e.g., using cardboard, you can skip this. |
+| :warning: I do not own a 3D printer and therefore I have not tried printing the provided 3D models yet. I will probably need to update them once I manage to find a 3D printer and build a couple of panels. |
+| --- |
+
+| :information_source: This software is used to export CAD files to be printed in 3D. If you are planning to create the supporting walls in a different way, e.g., using cardboard, you can skip this. |
 | --- |
 
 Installing the program should be very easy: just head to the [FreeCAD download page](https://www.freecadweb.org/downloads.php) and download the installer. Launch it and install the software.
@@ -55,7 +59,7 @@ Installing the program should be very easy: just head to the [FreeCAD download p
 
 ## Python and Anaconda
 
-| Note: this is an optional dependency that is required only if you run the script from its source. You can otherwise just run the "compiled" script (see the section [Using the designer executable](#using-the-designer-executable)). |
+| :information_source: this is an optional dependency that is required only if you run the script from its source. You can otherwise just run the "compiled" script (see the section [Using the designer executable](#using-the-designer-executable)). |
 | --- |
 
 The `wp3_designer.py` script requires a valid Python installation with very few additional packages. If you know how to use Python already, just make sure that the packages `Matplotlib`, `NumPy` and `PyYAML` are installed and skip to the next section. If you do not know how to install Python, or you are not entirely sure, in the following there is a quick and simple way based on [Anaconda](https://www.anaconda.com/). These steps have been tested in Windows, but they should be very similar under Ubuntu and MacOS. In addition, if you know how to use `pip`, you can do pretty much the same by `pip install`ing the required packages from a terminal, without using Anaconda at all. As best practice, make sure to use `venv` or `virtualenv` to create a virtual environment to contain the packages and not mess with your local installation.
@@ -171,8 +175,10 @@ Each material that falls in the sheet category is characterized by a size. One o
 
 As an example, there is a store near my house that sells acrylic sheets in a number of fixed sizes, such as 30x40cm2 and 40x50cm2. If my goal was to create the design shown in [Choosing panel locations](#choosing-panel-locations), which uses hexagonal panels with a side length of 5cm, this is how the two sheets would be filled:
 
-![imgs/sheets_acrylic_30_40.png](imgs/sheets_acrylic_30_40.png)
-![imgs/sheets_acrylic_40_50.png](imgs/sheets_acrylic_40_50.png)
+<p align="center">
+<img src="imgs/sheets_acrylic_30_40.png" alt="imgs/sheets_acrylic_30_40.png" width="49%"/>
+<img src="imgs/sheets_acrylic_40_50.png" alt="imgs/sheets_acrylic_40_50.png" width="50%"/>
+</p>
 
 Note that sheets do not always come in a predetermined size. Sometimes, they have a fixed width only, and you can buy as much material as you want, with the price increasing linearly with the chosen length. The designer is able to deal with this type of product as well, calculating the required amount of material in addition to finding how to fit tiles inside it.
 
@@ -256,9 +262,15 @@ Grouped under `routing`.
 | `mixed_mutations`| `int` | Optional. The algorithm performs mutations by selecting a tile and performing two distinct types of alterations: (1) swap its order of visit with all tiles within `max_swap_distance` and (2) change the vertex where its connector is located. In addition, a certain number of mixed mutations can be generated, in which both alterations are performed at the same time. Since the total amount of combinations is way too large for brute forcing, only a certain number of mixed mutations (controlled by this parameter) is selected. |
 
 
+### SignalRGB components settings
+
+| :construction: :construction_worker: work in progress: see [this issue](https://github.com/francofusco/wp3/issues/3). |
+| --- |
+
+
 ### Materials settings
 
-Materials come in two types: sheets and LED strips. Each of them is grouped in a specific namespace, ie, `materials/leds` and `materials/sheets`. In both cases, creating a new material requires to add a new namespace that is used as name for the material, and populate it with the required parameters. As an example, if you wish to add two LED strips named `Adafruit NeoPixel` and `WS2812B strip found on Amazon`, you can do it via:
+Materials come in two types: sheets and LED strips. Each of them is grouped in a specific namespace, *i.e.*, `materials/leds` and `materials/sheets`. In both cases, creating a new material requires to add a new namespace that is used as name for the material, and populate it with the required parameters. As an example, if you wish to add two LED strips named `Adafruit NeoPixel` and `WS2812B strip found on Amazon`, you can do it via:
 
 ```YAML
 materials:
@@ -288,6 +300,12 @@ Grouped under `materials/sheets/sheet_name`. Each entry should have:
 | `size` | `[float, float]` | Width and height (length) of the sheet. If a sheet is sold with variable height (length), you can replace it with `inf` and the designer will select an appropriate size. As an example, `size: [30.0e-2, 40.0e-2]` specifies a sheet that is 30cm large and 40cm long, while `size: [30.0e-2, inf]` specifies a sheet that is 30cm large and with variable height (length). **Do not pass `inf` as width**, it will break the designer. |
 | `cost` | `float` | Optional. Cost of the sheet, either per unit (if both sizes are fixed) or per unit of length (if the height/length is `inf`). |
 | `url` | `str` | Optional. Link to purchase the sheet. |
+
+| :warning: Disclaimer: the current material list is based on articles that I considered for purchase, but I want to clarify that I am not affiliated in any way to the sellers. |
+| --- |
+
+| :bulb: It might be interesting to move the current list of materials into a separate YAML file. This file would be hosted in the repo and edited by the community. The designer could send a HTTP request to get the list of materials and expand the list locally created by the user. See [this issue](https://github.com/francofusco/wp3/issues/4). |
+| --- |
 
 
 ### Assembly settings
@@ -331,7 +349,27 @@ assembly:
 The first list has multiple items because plexiglass can be purchased in sheets of different, but fixed, sizes. The second list has only one item since the film is sold with variable length and I want the designer to just tell me how much of it I need.
 
 
-## Updating the CAD
+# Building the panels
+
+## Purchasing the components
+
+In addition to the LED strips and the sheets to manufacture the panels, you will need a couple more materials:
+
+- A bunch of JST SM 3 Pin Connectors, such as [these ones](https://www.amazon.fr/gp/product/B01DC0KIT2/ref=ppx_yo_dt_b_asin_title_o02_s00?ie=UTF8&th=1). You will need two pairs of cables per panel.
+
+- A [Raspberry Pi Pico W](https://www.raspberrypi.com/products/raspberry-pi-pico/) to control the panels using SignalRGB.
+
+- A Power Supply Unit such as [this one](https://www.amazon.fr/gp/product/B07DQKM9P7/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1) or similar, just make sure to choose the correct wattage! In alternative, you can borrow some power from the PSU of your PC, but make sure you will not draw too much current.
+
+- Electrical wire and connectors, to connect the panels to the microcontroller and to the PSU.
+
+- Soldering equipment.
+
+
+## Updating the CAD and 3D-printing the walls
+
+| :warning: I do not own a 3D printer and therefore I have not tried printing the provided 3D models yet. I will probably need to update them once I manage to find a 3D printer and build a couple of panels. |
+| --- |
 
 The provided CAD file is parametric, meaning that you can change some values and the whole design will be updated accordingly. There are two types of component to be printed: *inner walls* (sides shared by two panels) and *outer walls* (sides belonging to a unique hexagon). The difference is that inner walls have a small support for the acrylic panels on both sides, while outer walls have this support on one side only. Here is a sketch of an outer wall:
 
@@ -358,16 +396,57 @@ If you wish to change something more than length and width of the walls, just ke
 - The LED strip should be glued on the lower part of the wall: make sure there is enough space for it!
 
 
-# Building the panels
+## Walls made out of cardboard as a cheap alternative
 
-## Purchasing the components
+As I mentioned before, I do not own a 3D printer yet (but it is in my wishlist :wink:) and therefore I could not build the panels using my CAD models. As a cheap and relatively quick alternative, I used cardboard to create the walls of my first prototypes. I completely disregarded aesthetics, but I believe that with a little more efforts one could easily achieve a nice result even with this material.
 
-## 3D-printing the walls
+Just for reference, this is how I created the cardboard walls:
+
+1. I cut a set of 10x3cm2 rectangles which were used as walls.
+1. I cut small stripes to create the panel supports.
+1. I glued the stripes onto the walls where needed: on one side for outer walls and on both sides for inner walls.
+1. I marked all corners with a number (to make it easier joining them later) and cut away a small portion of cardboard in the vertices where the connectors were supposed to be located.
+
+<p align="center">
+<img src="imgs/build_cardboard_walls_01.JPG" alt="imgs/build_cardboard_walls_01.JPG" width="32.5%"/>
+<img src="imgs/build_cardboard_walls_02.JPG" alt="imgs/build_cardboard_walls_02.JPG" width="32.5%"/>
+<img src="imgs/build_cardboard_walls_03.JPG" alt="imgs/build_cardboard_walls_03.JPG" width="32.5%"/>
+</p>
+
 
 ## Assembling the panels
+
+1. Using a cutter knife, cut the tiles out of the acrylic.
+1. Repeat the process using the opaque film, making sure that each film piece fits inside an acrylic tile with a little bit of margin.
+1. For each tile, remove the protective film from the acrylic and stick the opaque film on top of it.
+1. Glue the panels and the walls altogether.
+1. Prepare the LEDs: cut them in strips with the required amount of LEDs and solder a pair of connectors at each end. Make sure to be consistent with the direction of the data pins and the connector types at each end, so that strips can be joined in series!
+1. Attach the stripes inside each panel. Make sure to respect the detailed routing diagram for a flawless integration inside SignalRGB :wink:
+
+<p align="center">
+<img src="imgs/build_panels_01.JPG" alt="imgs/build_panels_01.JPG" width="32.5%"/>
+<img src="imgs/build_panels_02.JPG" alt="imgs/build_panels_02.JPG" width="32.5%"/>
+<img src="imgs/build_panels_03.JPG" alt="imgs/build_panels_03.JPG" width="32.5%"/>
+<img src="imgs/build_panels_04.JPG" alt="imgs/build_panels_04.JPG" width="32.5%"/>
+<img src="imgs/build_panels_05.JPG" alt="imgs/build_panels_05.JPG" width="32.5%"/>
+<img src="imgs/build_panels_06.JPG" alt="imgs/build_panels_06.JPG" width="32.5%"/>
+<img src="imgs/build_panels_07.JPG" alt="imgs/build_panels_07.JPG" width="32.5%"/>
+<img src="imgs/build_panels_08.png" alt="imgs/build_panels_08.png" width="32.5%"/>
+</p>
+
 
 ## SignalRGB integration
 
 ### Preparing the Pico controller
 
+| :construction: :construction_worker: This section is to be written. For the moment, I am using an Arduino Micro acting as a Corsair Lighting Node Pro, which I had already built following the instructions in the [CorsairLightingProtocol](https://github.com/Legion2/CorsairLightingProtocol) repository. The plan is to switch to a Pico board using the [SRGBmods Pico LED Controller](https://srgbmods.net/picoled/). |
+| --- |
+
+
 ### Adding the panels into SignalRGB's layouts
+
+Depending on which LED density you decided to use, copy the file named `design_info/wp3_signal_rgb_XXX_leds_per_tile.json` into the directory `Documents\WhirlwindFX\Components` and restart SignalRGB. In the *Devices* page, click on the controller that you are using and click on the "+" button to add a component. In the brand filter, scroll down and look for *WP3*, then select the appropriate component. Go to the *Layouts* page and position the panels in the canvas. You are all set :partying_face:
+
+![imgs/signal_rgb_integration.gif](imgs/signal_rgb_integration.gif)
+
+![imgs/alpha_test_jellyfish.MOV](imgs/alpha_test_jellyfish.MOV)
