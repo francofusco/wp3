@@ -55,10 +55,10 @@ In my original vision, these panels are meant to be used with [SignalRGB](https:
 ## FreeCAD
 
 | :warning: I do not own a 3D printer and therefore I have not tried printing the provided 3D models yet. I will probably need to update them once I manage to find a 3D printer and build a couple of panels. |
-| --- |
+| :-- |
 
 | :information_source: This software is used to export CAD files to be printed in 3D. If you are planning to create the supporting walls in a different way, e.g., using cardboard, you can skip this. |
-| --- |
+| :-- |
 
 Installing the program should be very easy: just head to the [FreeCAD download page](https://www.freecadweb.org/downloads.php) and download the installer. Launch it and install the software.
 
@@ -66,7 +66,7 @@ Installing the program should be very easy: just head to the [FreeCAD download p
 ## Python and Anaconda
 
 | :information_source: this is an optional dependency that is required only if you run the script from its source. You can otherwise just run the "compiled" script (see the section [Using the designer executable](#using-the-designer-executable)). |
-| --- |
+| :-- |
 
 The `wp3_designer.py` script requires a valid Python installation with very few additional packages. If you know how to use Python already, just make sure that the packages `Matplotlib`, `NumPy` and `PyYAML` are installed and skip to the next section. If you do not know how to install Python, or you are not entirely sure, in the following there is a quick and simple way based on [Anaconda](https://www.anaconda.com/). These steps have been tested in Windows, but they should be very similar under Ubuntu and MacOS. In addition, if you know how to use `pip`, you can do pretty much the same by `pip install`ing the required packages from a terminal, without using Anaconda at all. As best practice, make sure to use `venv` or `virtualenv` to create a virtual environment to contain the packages and not mess with your local installation.
 
@@ -235,7 +235,7 @@ The designer can be customized by editing a YAML configuration file, `config.yam
 If you are unfamiliar with YAML, have a look at the [Wikipedia page](https://en.wikipedia.org/wiki/YAML) or just do a web search.
 
 | There is a bug in PyYAML related to scientific notation. If you want to write a number such as `0.01`, you might want to write it as `1e-2`. However, due to the bug you must include the decimal point in the base: `1.0e-2`. |
-| --- |
+| :-- |
 
 
 ### Panels settings
@@ -271,7 +271,7 @@ Grouped under `routing`.
 ### SignalRGB components settings
 
 | :construction: :construction_worker: work in progress: see [this issue](https://github.com/francofusco/wp3/issues/3). |
-| --- |
+| :-- |
 
 
 ### Materials settings
@@ -308,10 +308,10 @@ Grouped under `materials/sheets/sheet_name`. Each entry should have:
 | `url` | `str` | Optional. Link to purchase the sheet. |
 
 | :warning: Disclaimer: the current material list is based on articles that I considered for purchase, but I want to clarify that I am not affiliated in any way to the sellers. |
-| --- |
+| :-- |
 
 | :bulb: It might be interesting to move the current list of materials into a separate YAML file. This file would be hosted in the repo and edited by the community. The designer could send a HTTP request to get the list of materials and expand the list locally created by the user. See [this issue](https://github.com/francofusco/wp3/issues/4). |
-| --- |
+| :-- |
 
 
 ### Assembly settings
@@ -375,7 +375,7 @@ In addition to the LED strips and the sheets to manufacture the panels, you will
 ## Updating the CAD and 3D-printing the walls
 
 | :warning: I do not own a 3D printer and therefore I have not tried printing the provided 3D models yet. I will probably need to update them once I manage to find a 3D printer and build a couple of panels. |
-| --- |
+| :-- |
 
 The provided CAD file is parametric, meaning that you can change some values and the whole design will be updated accordingly. There are two types of component to be printed: *inner walls* (sides shared by two panels) and *outer walls* (sides belonging to a unique hexagon). The difference is that inner walls have a small support for the acrylic panels on both sides, while outer walls have this support on one side only. Here is a sketch of an outer wall:
 
@@ -446,7 +446,7 @@ Just for reference, this is how I created the cardboard walls:
 ### Preparing the Pico controller
 
 | :construction: :construction_worker: This section is to be written. For the moment, I am using an Arduino Micro acting as a Corsair Lighting Node Pro, which I had already built following the instructions in the [CorsairLightingProtocol](https://github.com/Legion2/CorsairLightingProtocol) repository. The plan is to switch to a Pico board using the [SRGBmods Pico LED Controller](https://srgbmods.net/picoled/). |
-| --- |
+| :-- |
 
 
 ### Adding the panels into SignalRGB's layouts
