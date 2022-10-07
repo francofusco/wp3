@@ -42,6 +42,9 @@ This project provides the instructions to create a custom design of A-RGB panels
 
 In my original vision, these panels are meant to be used with [SignalRGB](https://www.signalrgb.com/) - which is why I included a special section dedicated to using them in the software. However, these panels are nothing but a fancy set of A-RGB strips: you can of course connect them to any hardware that is able to control NeoPixel/WS2812 LEDs!
 
+<p align="center">
+<img src="imgs/alpha_test_jellyfish.gif" alt="imgs/alpha_test_jellyfish.gif" width="80%"/>
+</p>
 
 # Software dependencies
 
@@ -448,5 +451,3 @@ Just for reference, this is how I created the cardboard walls:
 Depending on which LED density you decided to use, copy the file named `design_info/wp3_signal_rgb_XXX_leds_per_tile.json` into the directory `Documents\WhirlwindFX\Components` and restart SignalRGB. In the *Devices* page, click on the controller that you are using and click on the "+" button to add a component. In the brand filter, scroll down and look for *WP3*, then select the appropriate component. Go to the *Layouts* page and position the panels in the canvas. You are all set :partying_face:
 
 ![imgs/signal_rgb_integration.gif](imgs/signal_rgb_integration.gif)
-
-![imgs/alpha_test_jellyfish.MOV](imgs/alpha_test_jellyfish.MOV)
