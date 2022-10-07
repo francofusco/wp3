@@ -47,7 +47,7 @@ In my original vision, these panels are meant to be used with [SignalRGB](https:
 </p>
 
 | The question that probably nobody asked: why *Wilson's Pew-Pew Panels*? Well, *Wilson* is the name I gave to my PC while *Pew-Pew* is the sound that my girlfriend used to do to describe the lighting effects of my tower build. Hence, the name was born! :computer::sparkles::sparkles: |
-| --- |
+| :-- |
 
 # Software dependencies
 
