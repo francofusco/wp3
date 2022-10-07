@@ -377,7 +377,9 @@ def main():
             for led in segment:
                 led_idx = len(signal_rgb_data["LedMapping"])
                 signal_rgb_data["LedMapping"].append(led_idx)
-                signal_rgb_data["LedCoordinates"].append(np.round((led-origin)*scale).astype(int).tolist())
+                led_coordinates = (led-origin)*scale
+                led_coordinates[1] = height - led_coordinates[1]
+                signal_rgb_data["LedCoordinates"].append(np.round(led_coordinates).astype(int).tolist())
                 signal_rgb_data["LedNames"].append(f"Led {led_idx} (tile {led_idx//leds_per_tile})")
 
         # Save the generated data into a JSON file that can be imported into
