@@ -13,12 +13,10 @@ mpl.rcParams['toolbar'] = 'None'
 
 def main():
     # Get configuration file and working directory.
-    config_file = pathlib.Path(wp3.retrieve_settings_file())
-    output_dir = config_file.parent.joinpath("design_info")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir, settings = wp3.open_project()
 
-    # Load settings from a YAML file.
-    settings = wp3.load_settings(config_file)
+    # Extract a list of materials.
+    materials = wp3.load_materials(settings)
 
     # Load type and variant of the tile.
     tile_type_specs = settings["panels"]["type"].split("#") + [0]
@@ -213,7 +211,7 @@ def main():
     # the designer try with different sizes as well.
     panel_material_data = {}
 
-    for i, (layer_name, layer) in enumerate(settings["materials"]["sheets"].items()):
+    for i, (layer_name, layer) in enumerate(materials["sheets"].items()):
         # Get the size of the current sheet.
         width, height = layer["size"]
 
@@ -288,7 +286,7 @@ def main():
         # materials that specifies how many sheets to buy (or their length in
         # the case of variable-length sheets).
         for component, quantity in components:
-            url = settings["materials"]["sheets"][component.name].get("url")
+            url = materials["sheets"][component.name].get("url")
             url_md = f"[url link]({url})" if url is not None else ""
             if component.variable_size:
                 quantity = np.round(component.height, 3)
@@ -302,9 +300,9 @@ def main():
             return
 
         # Check if all strips in this assembly have the same LED density.
-        led_density = settings["materials"]["leds"][materials[0]]["leds_per_meter"]
+        led_density = materials["leds"][materials[0]]["leds_per_meter"]
         for m in materials[:1]:
-            if settings["materials"]["leds"][m]["leds_per_meter"] != led_density:
+            if materials["leds"][m]["leds_per_meter"] != led_density:
                 print(f"Error in assembly list 'leds/{i}'. The components "
                       f"'{materials[0]}' and '{m}' have a different amount of "
                       f"LEDs per meter.")
@@ -317,15 +315,15 @@ def main():
 
         # Get the list of strips that have to be purchased, and their quantity.
         components, cost, _ = wp3.named_tree_search([wp3.Struct(name=m,
-            value=settings["materials"]["leds"][m]["number_of_leds"] / settings["materials"]["leds"][m]["leds_per_meter"],
-            cost=settings["materials"]["leds"][m].get("cost", 0))
+            value=materials["leds"][m]["number_of_leds"] / materials["leds"][m]["leds_per_meter"],
+            cost=materials["leds"][m].get("cost", 0))
             for m in materials], required_led_length)
 
         # For each strip type to be purchased, add a line in the bill of
         # materials that specifies how many to buy.
         for component, quantity in components:
             led_notes = f"Leds per tile: {leds_per_tile}."
-            url = settings["materials"]["leds"][component.name].get("url")
+            url = materials["leds"][component.name].get("url")
             if url is not None:
                 led_notes += f" [url link]({url})"
             bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=led_notes))
@@ -333,7 +331,7 @@ def main():
         # If wattage information is provided for all strips, try to estimate the
         # total wattage required to power the LEDs and add this information to
         # the bill of materials (as a PSU item).
-        watts = sum(n*settings["materials"]["leds"][c.name].get("watts", np.nan) for c, n in components)
+        watts = sum(n*materials["leds"][c.name].get("watts", np.nan) for c, n in components)
         if watts != np.nan:
             bill_of_materials.append(wp3.BillItem(name=f"{watts}W Power Supply Unit", category=f"leds-{i}", notes="The power has been estimated. You might need a lower wattage."))
 

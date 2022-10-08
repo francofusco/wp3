@@ -1,9 +1,112 @@
 from collections import UserDict
 from copy import deepcopy
+import os
 import pathlib
-from PyQt5.QtWidgets import QApplication, QFileDialog
+from PyQt5.QtWidgets import QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 import sys
+import urllib.request
 import yaml
+
+
+def open_project():
+    # Create a QApplication to run all GUIs.
+    app = QApplication([])
+
+    # Create a message box that asks the user to create or load a project.
+    new_or_load_message_box = QMessageBox()
+    new_or_load_message_box.setWindowTitle("WP3 Designer")
+    new_or_load_message_box.setText("Do you want to create a new project or load an existing one?")
+    new_or_load_message_box.setIcon(QMessageBox.Question)
+    new_btn = new_or_load_message_box.addButton("New", QMessageBox.YesRole)
+    load_btn = new_or_load_message_box.addButton("Load", QMessageBox.NoRole)
+    new_or_load_message_box.addButton("Cancel", QMessageBox.RejectRole)
+
+    # Wait for user's response, then take an action.
+    new_or_load_message_box.exec()
+    if new_or_load_message_box.clickedButton() == new_btn:
+        # Retrieve the default configuration file. Note that PyInstaller creates
+        # a temporary folder with the resources inside it, and stores its path
+        # in _MEIPASS, which is why the following code is necessary.
+        try:
+            cfg_path = sys._MEIPASS
+        except Exception:
+            cfg_path = "."
+
+        settings = load_settings(pathlib.Path(cfg_path).joinpath("config.yaml"))
+
+        new_project_dialog = QDialog()
+        main_layout = QVBoxLayout()
+        new_project_dialog.setLayout(main_layout)
+        new_project_dialog.setWindowTitle("Project settings")
+
+        # Let the user create a new project.
+        form = QFormLayout()
+        project_name = QLineEdit()
+        form.addRow("Project name", project_name)
+        tile_type = QLineEdit(settings["panels"]["type"])
+        form.addRow("Tile type", tile_type)
+        side_length = QLineEdit(str(settings["panels"]["side_length"]))
+        form.addRow("Tiles side length", side_length)
+        spacing = QLineEdit(str(settings["panels"]["spacing"]))
+        form.addRow("Tiles spacing", spacing)
+        rows = QLineEdit(str(settings["panels"]["rows"]))
+        form.addRow("Canvas rows", rows)
+        columns = QLineEdit(str(settings["panels"]["columns"]))
+        form.addRow("Canvas columns", columns)
+
+        # Buttons to confirm or cancel project creation.
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+
+        def accept_if_directory_is_empty(dir_name, dialog):
+            if dir_name == "":
+                QMessageBox.critical(None, "Error", "Empty project name")
+                return
+            dir = pathlib.Path("projects").joinpath(dir_name)
+            if dir.exists():
+                if dir.is_file():
+                    QMessageBox.critical(None, "Error", "Project name exists as a file")
+                    return
+                elif any(dir.iterdir()):
+                    QMessageBox.critical(None, "Error", "Project directory is not empty")
+                    return
+            dialog.accept()
+
+        buttonBox.accepted.connect(lambda: accept_if_directory_is_empty(project_name.text(), new_project_dialog))
+        buttonBox.rejected.connect(new_project_dialog.reject)
+
+        main_layout.addLayout(form)
+        main_layout.addWidget(buttonBox)
+
+        if not new_project_dialog.exec():
+            sys.exit()
+
+        project_dir = pathlib.Path("projects").joinpath(project_name.text())
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        settings.read_only = False
+        settings["panels"]["type"] = tile_type.text()
+        settings["panels"]["side_length"] = float(side_length.text())
+        settings["panels"]["spacing"] = float(spacing.text())
+        settings["panels"]["rows"] = int(rows.text())
+        settings["panels"]["columns"] = int(columns.text())
+        settings.read_only = True
+
+        with open(project_dir.joinpath("config.yaml"), "w") as f:
+            yaml.dump(settings.data, f)
+
+        return project_dir, settings
+    elif new_or_load_message_box.clickedButton() == load_btn:
+        # Load an existing project.
+        file_name, _ = QFileDialog.getOpenFileName(None, "Open project",
+                                                   ".", "YAML (*.yaml *.yml)")
+        # If no selection was made, quit.
+        if file_name == "":
+            sys.exit()
+
+        # Return project location and settings.
+        return pathlib.Path(file_name).parent, load_settings(file_name)
+    else:
+        sys.exit()
 
 
 def load_settings(filename):
@@ -18,44 +121,40 @@ def load_settings(filename):
     with open(filename) as f:
         settings = yaml.load(f, Loader=yaml.loader.SafeLoader)
 
-    # Make sure that panel sizes (in the matierial/panels section) are parsed
-    # as arrays of floats. By default, they are read as arrays of strings. This
-    # also allows to use inf as a value for panels whose cost is dependent on
-    # the size.
-    for k in settings["materials"]["sheets"]:
-        settings["materials"]["sheets"][k]["size"] = list(map(float, settings["materials"]["sheets"][k]["size"]))
+
+    if settings.get("materials", {}).get("sheets") is not None:
+        for k in settings["materials"]["sheets"]:
+            settings["materials"]["sheets"][k]["size"] = list(map(float, settings["materials"]["sheets"][k]["size"]))
 
     # Return the processed settings.
     return SettingsDict(settings)
 
 
-def retrieve_settings_file():
-    """Get the name of the YAML configuration file.
+def load_materials(settings):
+    try:
+        with urllib.request.urlopen("https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml") as f:
+            materials = yaml.load(f, Loader=yaml.loader.SafeLoader)
+    except urllib.error.HTTPError:
+        with open("materials.yaml", "r") as f:
+            materials = yaml.load(f, Loader=yaml.loader.SafeLoader)
 
-    The function is used to retrieve the name of the YAML configuration file
-    containing the settings for the designer. The function checks if the default
-    name `config.yaml` corresponds to a file in the current directory. If so,
-    it returns it. Otherwise, it asks the user to select one using a file
-    chooser. If the user aborts the operation, then the program quuits.
+    print(materials)
 
-    Returns:
-        Name of the YAML file that should be opened to retrieve settings.
-    """
-    # Check of the default file exists. If so, hust return it.
-    default_filename = "config.yaml"
-    if pathlib.Path(default_filename).is_file():
-        return default_filename
+    if settings.has("materials", "leds"):
+        for k, v in settings["materials"].extract("leds").items():
+            materials["leds"][k] = v
 
-    # Ask the user to select a file using a graphical file chooser.
-    app = QApplication([])
-    file_name, _ = QFileDialog.getOpenFileName(None, "Open Config File", ".",
-                                            "YAML (*.yaml *.yml)")
-    # If no selection was made, quit.
-    if file_name == "":
-        sys.exit()
+    if settings.has("materials", "sheets"):
+        for k, v in settings["materials"].extract("sheets").items():
+            materials["sheets"][k] = v
 
-    # Return the chosen file.
-    return file_name
+    # Make sure that panel sizes are parsed as arrays of floats. By default,
+    # they are read as arrays of strings. This also allows to use inf as a
+    # value for panels whose cost is dependent on the size.
+    for k in materials["sheets"]:
+        materials["sheets"][k]["size"] = list(map(float, materials["sheets"][k]["size"]))
+
+    return SettingsDict(materials)
 
 
 class SettingsDict(UserDict):
@@ -85,7 +184,7 @@ class SettingsDict(UserDict):
       from False (the default) to True.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, read_only=True, **kwargs):
         """Initialize the dictionary.
 
         Args:
@@ -118,7 +217,7 @@ class SettingsDict(UserDict):
         # becomes read-only.
         self.read_only = False
         super().__init__(*args, **kwargs)
-        self.read_only = True
+        self.read_only = read_only
 
     def __setitem__(self, key, value):
         """Set a value in the dictionary, if the instance is not read-only.
@@ -166,7 +265,7 @@ class SettingsDict(UserDict):
         # If the obtained value is a dictionary, convert it to a SettingsDict
         # and extend its namespace.
         if isinstance(value, dict):
-            value = SettingsDict(value)
+            value = SettingsDict(value, read_only=self.read_only)
             value.ns = key if self.ns is None else f"{self.ns}/{key}"
 
         # Return the retrieved value.
