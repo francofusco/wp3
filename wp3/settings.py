@@ -198,7 +198,8 @@ def load_materials(settings):
     # Try to initialize the list of materials from an online file.
     try:
         hosted_materials_file, _ = urllib.request.urlretrieve("https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml")
-        materials = SettingsDict.parser.load(hosted_materials_file)
+        with open(hosted_materials_file, "r") as f:
+            materials = SettingsDict.parser.load(f)
     except (urllib.error.URLError, urllib.error.HTTPError):
         materials = {}
 
@@ -216,7 +217,8 @@ def load_materials(settings):
     local_materials_file = pathlib.Path("materials.yaml")
     if local_materials_file.is_file():
         # Read the local list of materials.
-        local_materials = SettingsDict.parser.load(local_materials_file)
+        with open(local_materials_file, "r") as f:
+            local_materials = SettingsDict.parser.load(f)
 
         # Expand or replace materials using the content of the local file.
         if "leds" in local_materials:
