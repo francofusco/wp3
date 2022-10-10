@@ -49,8 +49,8 @@ In my original vision, these panels are meant to be used with [SignalRGB](https:
 | The question that probably nobody asked: why *Wilson's Pew-Pew Panels*? Well, *Wilson* is the name I gave to my PC while *Pew-Pew* is the sound that my girlfriend used to do to describe the lighting effects of my tower build. Hence, the name was born! :computer::sparkles::sparkles: |
 | :-- |
 
-# Software dependencies
 
+# Software dependencies
 
 ## FreeCAD
 
@@ -80,17 +80,20 @@ Anyway, here are the instructions to download all Python dependencies:
 1. Make sure that, next to the label *Packages*, *Python* is checked while *R* is unchecked. You should be able to select a Python version. I recommend using `3.9.XX` since is the one I used, but do as you please.
 1. Click on *Create* and wait for the environment to be ready.
 1. You should see a list of packages that are already installed. On the top, switch from the option *Installed* to *All*.
-1. On the top-right, there should be a package search bar. Click inside it and type `numpy`. In the list, look for the package named `numpy` and select it. Go back to the search bar and type `matplotlib`, then select `matplotlib` from the package list. Do the same a third time to locate and select the package `pyyaml`. Note that there might also be a `pyaml` package, with a single `y`. Do not select this one! To recap: `pyyaml` good, `pyaml` bad.
+1. On the top-right, there should be a package search bar. Click inside it and type `numpy`. In the list, look for the package named `numpy` and select it. Go back to the search bar and type `matplotlib`, then select `matplotlib` from the package list. Do the same a third time to locate and select the package `ruamel.yaml`.
 1. In the bottom right corner you should see a green button showing the text *Apply*: click on it. Anaconda will then open a pop-up window asking to install several packages. Click on *Apply* to install the three selected packages and their dependencies. This might take a while, just be patient and wait.
 
 ![imgs/anaconda.gif](imgs/anaconda.gif)
+
+| :warning: The gif is not up to date and installs `PyYAML` instead of `ruamel.yaml`. Make sure to select the latter, not the former! |
+| --- |
 
 Python is now configured! You can close the Anaconda navigator and proceed to the next step.
 
 
 # Designing the panels
 
-The design pipeline is quite simple: you firstly launch the script `wp3_designer.py` (or its executable equivalent, `wp3_designer.exe`), which allows to create a custom design for a set of hexagonal panels. Once the design is ready, the script provides some information about the material to be purchased and few "instructions" to manufacture the panels. You then have to adapt the CAD files and export STL meshes for 3D printing.
+The design pipeline is quite simple: you firstly launch the script `wp3_designer.py` (or its executable equivalent, `wp3_designer.exe`), which allows to create a custom design for a set of panels. Once the design is ready, the script provides some information about the material to be purchased and few "instructions" to manufacture the panels. You then have to adapt the CAD files and export STL meshes for 3D printing.
 
 
 ## Launching the designer
@@ -103,16 +106,16 @@ To start the designer, you have two options:
 
 ### Using the designer executable
 
-First of all, download the archive [wp3_designer.zip](https://github.com/francofusco/wp3/releases/latest/download/wp3_designer.zip), which contains two files: the executable `wp3_designer.exe` and a YAML configuration file. Extract them in a location of your choice and then double click on the executable. It will take a moment for the program to start, but that should be all!
+Download the executable [wp3_designer.exe](https://github.com/francofusco/wp3/releases/latest/download/wp3_designer.exe), place it in a location of your choice and then double click on it. It will take a moment for the program to start, but that should be all!
 
-If you wish to use an older version, check the [releases page](https://github.com/francofusco/wp3/releases) and download the `wp3_designer.zip` from the corresponding assets.
+If you wish to use an older version, check the [releases page](https://github.com/francofusco/wp3/releases) and download the executable from the corresponding assets.
 
 
 ### Launching the designer from the command line
 
 If you already used Python before, this should sound very familiar. If you did not, I hope the procedure is clear and detailed enough to make it easy and painless. Anyway, here is what you need to do:
 
-1. [Download the repository](https://github.com/francofusco/wp3/archive/refs/heads/main.zip), if you haven't done that already. If you downloaded the source code using this link, make sure to extract the content of the archive in a location of your choice!
+1. [Download the repository](https://github.com/francofusco/wp3/archive/refs/heads/main.zip), if you haven't done that already. If you downloaded the source code using this link, make sure to extract the content of the archive in a location of your choice! You can also do it from the command line via `git clone git@github.com:francofusco/wp3.git` (ssh) or `git clone https://github.com/francofusco/wp3.git` (https).
 1. Open Anaconda Navigator and on the left, select *Environments*.
 1. Select the environment that you previously created (see [Python and Anaconda](#python-and-anaconda)).
 1. Once it has been activated, click on the green button with the "play" icon, next to the environment name.
@@ -124,19 +127,26 @@ If you already used Python before, this should sound very familiar. If you did n
 ## Quick overview of the designer
 
 
+### Creating and loading projects
+
+After launching the designer, a dialog window should open, asking to create a new project or load an existing one.
+
+If you choose to create a new one, enter its name and change the default parameters if you wish (more details about their meaning are provided in the section [Configuration of the designer](#configuration-of-the-designer)). The project will be stored inside a folder with the given project name and a configuration file, named `config.yaml` will be created.
+
+If you wish to load an existing project, move to the folder that contains it and select its `config.yaml` file.
+
+
 ### Choosing panel locations
 
-After launching the designer, a window should open, that looks like the following:
+When working on a project, a window should open that looks like the following:
 
 ![imgs/wp3_designer_startup.gif](imgs/wp3_designer_startup.gif)
 
 This is the design window, that allows you to create a custom composition of panels that you will later build. To change the composition, you can do the following:
 
-- Click anywhere within the design space to add or remove a hexagon.
-- Press `A` to remove all hexagons, `CTRL+A` to fill the space with as many hexagons as possible.
-- Press the space bar to toggle all hexagons. As an example, if you press the space bar right after startup you should see the following:
-
-![imgs/wp3_designer_toggle_all.gif](imgs/wp3_designer_toggle_all.gif)
+- Click anywhere within the design space to add or remove a tile.
+- Press `A` to remove all tiles, `CTRL+A` to fill the space with as many tiles as possible.
+- Press the space bar to toggle all tiles.
 
 Once you are satisfied with a design, just close the window.
 
@@ -213,9 +223,9 @@ Another feature of the designer is that it is able to provide a detailed routing
 
 ![imgs/routing_detailed.png](imgs/routing_detailed.png)
 
-This scheme allows to locate each LED individually in the custom design. Furthermore, a JSON file is produced that can be imported into SignalRGB to provide the necessary information to map each LED to a portion of the scene.
+This scheme allows to locate each LED individually in the custom design. Furthermore, JSON files are produced that can be imported into SignalRGB to provide the necessary information to map each LED to a portion of the scene.
 
-For each given LED density, the routing scheme and the JSON file are generated respectively under the names `design_info/wp3_routing_XXX_leds_per_tile.pdf` and  `design_info/wp3_signal_rgb_XXX_leds_per_tile.json`, where `XXX` is the number of LEDs that the designer determined can fit in a single panel.
+For each given LED density, the routing scheme and the JSON file are generated respectively under the names `design_info/wp3_routing_XXX_leds_per_tile.pdf` and  `design_info/wp3_PROJECT-NAME_XXX_leds_signal_rgb.json`, where `XXX` is the number of LEDs that the designer determined can fit in a single panel.
 
 
 #### Bill of materials
@@ -230,11 +240,11 @@ Last but not least, the designer produces a file, `design_info/bill_of_materials
 
 ## Configuration of the designer
 
-The designer can be customized by editing a YAML configuration file, `config.yaml`. At startup, the designer will look for it in the current folder. If the file is missing, it will open a file dialog to let the user select the file manually.
+The designer can be customized by editing the YAML configuration file `config.yaml` present inside each project.
 
 If you are unfamiliar with YAML, have a look at the [Wikipedia page](https://en.wikipedia.org/wiki/YAML) or just do a web search.
 
-| There is a bug in PyYAML related to scientific notation. If you want to write a number such as `0.01`, you might want to write it as `1e-2`. However, due to the bug you must include the decimal point in the base: `1.0e-2`. |
+| :information_source: There is a bug in PyYAML related to scientific notation. If you want to write a number such as `0.01`, you might want to write it as `1e-2`. However, due to the bug you must include the decimal point in the base: `1.0e-2`. |
 | :-- |
 
 
@@ -249,7 +259,7 @@ Grouped under `panels`.
 | `columns`| `int` | Number of columns in the designer area. |
 | `side_length` | `float` | Lateral size of the tiles, in meters. |
 | `spacing` | `float` | Distance between the sides of two adjacent tiles, in meters. |
-| `initial_tiling` | `array` | Optional. This parameter allows to load a custom design on startup. The array is just a list of row-column pairs corresponding to tiles that should be visible on launch. After generating a composition of panels, the designer stores its corresponding array in a file named `design_info/initial_tiling.yaml`. Once you have created the design of your choice, open this file and copy its last line verbatim in your `config.yaml`. Note that `design_info/initial_tiling.yaml` contains all the tilings of each of your last runs, in chronological order (which is why you should pick the last line after having created your target design). |
+| `initial_tiling` | `array` | Optional. This parameter allows to load a custom design on startup. The array is just a list of row-column pairs corresponding to tiles that should be visible on launch. After generating a composition of panels, the designer automatically updates the configuration file by storing the array corresponding to the current design. Therefore, you should not need to edit this parameter manually. |
 
 
 ### Routing settings
@@ -260,7 +270,7 @@ Grouped under `routing`.
 | :-------: | :--: | ----------- |
 | `segments` | `int` | Optional. Number of segments to be used in the routing procedure. Cannot be given if `tiles_per_segment` is specified. |
 | `tiles_per_segment` | `int` | Optional. Allows to use multiple segments in the routing, by specifying the maximum number of tiles to be traversed in each segment. Cannot be given if `segments` is specified. |
-| `cache` | `array` | Optional. This parameter allows to load on startup a routing that was found in a previous run, rather than starting from a random guess. The array contains two lists: the first one being the indices of the traversed tiles and the second one telling on which vertex of each tile a connector is placed. Every time a routing is determined, the designer stores its corresponding array in a file named `design_info/routing_cache.yaml`. Once you have found a good routing for the design of your choice, you can open this file and copy its last line verbatim in your `config.yaml` to load it the next time. Note that `design_info/routing_cache.yaml` contains all the routings of each of your last runs, in chronological order (which is why you should pick the last line after having found the desired routing). |
+| `cache` | `array` | Optional. This parameter allows to load on startup a routing that was found in a previous run, rather than starting from a random guess. The array contains two lists: the first one being the indices of the traversed tiles and the second one telling on which vertex of each tile a connector is placed. Every time a routing is determined, the designer updates the configuration file by storing the array corresponding to the current routing. Therefore, you should not need to edit this parameter manually. |
 | `max_iterations`| `int` | Optional. The routing algorithm works by generating random samples and trying to improve them. This parameter decides how many samples to generate in total. |
 | `attemps_per_improvement`| `int` | Optional. The routing algorithm works by generating random samples and trying to improve them by random mutations. This parameter decides how many unsuccessful mutations can be attempted before considering a random sample as improved. |
 | `random_start_probability`| `float` | Optional. When generating candidates for improvement, the algorithm will either create a random sample or select the current optimal solution and try again to improve it with more random mutations. This parameter provides the probability of generating random samples instead of selecting the current best. You should probably give it a value between `0.9` and `1.0`. |
@@ -310,8 +320,10 @@ Grouped under `materials/sheets/sheet_name`. Each entry should have:
 | :warning: Disclaimer: the current material list is based on articles that I considered for purchase, but I want to clarify that I am not affiliated in any way to the sellers. |
 | :-- |
 
-| :bulb: It might be interesting to move the current list of materials into a separate YAML file. This file would be hosted in the repo and edited by the community. The designer could send a HTTP request to get the list of materials and expand the list locally created by the user. See [this issue](https://github.com/francofusco/wp3/issues/4). |
-| :-- |
+In addition to the materials listed in `config.yaml`, the designer can read a list of materials from two additional sources:
+
+1. The file [`materials.yaml`](https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml) stored in the online repository.
+1. The local file `materials.yaml`. This source is meant to be read during development.
 
 
 ### Assembly settings
@@ -451,6 +463,6 @@ Just for reference, this is how I created the cardboard walls:
 
 ### Adding the panels into SignalRGB's layouts
 
-Depending on which LED density you decided to use, copy the file named `design_info/wp3_signal_rgb_XXX_leds_per_tile.json` into the directory `Documents\WhirlwindFX\Components` and restart SignalRGB. In the *Devices* page, click on the controller that you are using and click on the "+" button to add a component. In the brand filter, scroll down and look for *WP3*, then select the appropriate component. Go to the *Layouts* page and position the panels in the canvas. You are all set :partying_face:
+Depending on which LED density you decided to use, copy the corresponding json files into the directory `Documents\WhirlwindFX\Components` and restart SignalRGB. In the *Devices* page, click on the controller that you are using and click on the "+" button to add a component. In the brand filter, scroll down and look for *WP3*, then select the appropriate component. Go to the *Layouts* page and position the panels in the canvas. You are all set :partying_face:
 
 ![imgs/signal_rgb_integration.gif](imgs/signal_rgb_integration.gif)
