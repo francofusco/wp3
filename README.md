@@ -11,6 +11,7 @@
 		- [Using the designer executable](#using-the-designer-executable)
 		- [Launching the designer from the command line](#launching-the-designer-from-the-command-line)
 	- [Quick overview of the designer](#quick-overview-of-the-designer)
+		- [Creating and loading projects](#creating-and-loading-projects)
 		- [Choosing panel locations](#choosing-panel-locations)
 		- [Routing](#routing)
 		- [Materials and result files](#materials-and-result-files)
