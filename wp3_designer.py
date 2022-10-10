@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib import colormaps
 import numpy as np
 import pathlib
+import shutil
+import sys
 import time
+import traceback
 import wp3
 
 # Remove interaction buttons to prevent the user change the canvas accidentally.
@@ -16,7 +19,7 @@ def main():
     output_dir, settings = wp3.open_project()
 
     # Extract a list of materials.
-    materials = wp3.load_materials(settings)
+    materials_list = wp3.load_materials(settings)
 
     # Load type and variant of the tile.
     tile_type_specs = settings["panels"]["type"].split("#") + [0]
@@ -84,7 +87,7 @@ def main():
     while exit_helper.keep_running:
         for i, tile in enumerate(tiles):
             tile.patch.set_color(colormaps["hsv"](((time.time() / period - i * velocity) % 1)))
-        plt.pause(0.001)
+        plt.pause(0.05)
 
     # Collect all tiles (and their coordinates) in the chosen design.
     visible_tiles = []
@@ -93,8 +96,9 @@ def main():
         if tile.is_visible():
             visible_tiles.append(tile)
             tiling_coordinates.append([tile.row, tile.col])
-    with open(output_dir.joinpath("initial_tiling.yaml"), "a") as f:
-        print("initial_tiling:", tiling_coordinates, file=f)
+
+    # Store the current design in the YAML configuration file.
+    wp3.update_initial_tiling(output_dir, settings, tiling_coordinates)
 
     # Read how many segments should be generated in the routing problem.
     segments = 1
@@ -146,7 +150,7 @@ def main():
 
         # Loop that waits for user interaction.
         while exit_helper.keep_running and not exit_helper.reroute:
-            plt.pause(0.001)
+            plt.pause(0.05)
 
         # Save the current routing into a figure, to make sure that it is safely
         # stored somewhere.
@@ -176,8 +180,7 @@ def main():
             break
 
     # Store current routing.
-    with open(output_dir.joinpath("routing_cache.yaml"), "a") as f:
-        print("cache:", best_routing.tolist(), file=f)
+    wp3.update_cached_routing(output_dir, settings, best_routing.tolist())
 
     # List of items to be purchased/manufactured.
     bill_of_materials = []
@@ -211,7 +214,12 @@ def main():
     # the designer try with different sizes as well.
     panel_material_data = {}
 
-    for i, (layer_name, layer) in enumerate(materials["sheets"].items()):
+    # Generated tiling files for all materials should be first saved into a
+    # temporary file and then copied if needed.
+    tiling_temp_dir = output_dir.joinpath("tiling_temp")
+    tiling_temp_dir.mkdir(exist_ok=True)
+
+    for (layer_name, layer) in materials_list["sheets"].items():
         # Get the size of the current sheet.
         width, height = layer["size"]
 
@@ -273,117 +281,126 @@ def main():
         wp3.add_tiles_to_axes(tiles_layer, ax, patch_color="lightgray")
 
         # Save the tiling into a file.
-        fig.savefig(output_dir.joinpath(f"tiling_{layer_name}.pdf"), bbox_inches='tight')
+        fig.savefig(tiling_temp_dir.joinpath(f"tiling_{layer_name}.pdf"), bbox_inches='tight')
         plt.close("all")
 
-    # For each group of materials that can be used to manufacture the tiles,
-    # evaluate the cheapest combination of articles that can be purchased.
-    for i, materials in enumerate(settings["assembly"]["sheets"]):
-        # Get the list of sheets that have to be purchased, and their quantity.
-        components, cost, _ = wp3.named_tree_search([panel_material_data[m] for m in materials], len(visible_tiles))
+    if settings.has("assembly", "sheets"):
+        # For each group of materials that can be used to manufacture the tiles,
+        # evaluate the cheapest combination of articles that can be purchased.
+        for i, materials in enumerate(settings["assembly"]["sheets"]):
+            # Get the list of sheets that have to be purchased, and their quantity.
+            components, cost, _ = wp3.named_tree_search([panel_material_data[m] for m in materials], len(visible_tiles))
 
-        # For each sheet type to be purchased, add a line in the bill of
-        # materials that specifies how many sheets to buy (or their length in
-        # the case of variable-length sheets).
-        for component, quantity in components:
-            url = materials["sheets"][component.name].get("url")
-            url_md = f"[url link]({url})" if url is not None else ""
-            if component.variable_size:
-                quantity = np.round(component.height, 3)
-            bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.unit_cost, category=f"sheets-{i}", notes=url_md))
+            # For each sheet type to be purchased, add a line in the bill of
+            # materials that specifies how many sheets to buy (or their length in
+            # the case of variable-length sheets).
+            for component, quantity in components:
+                url = materials_list["sheets"][component.name].get("url")
+                url_md = f"[url link]({url})" if url is not None else ""
+                if component.variable_size:
+                    quantity = np.round(component.height, 3)
+                bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.unit_cost, category=f"sheets-{i}", notes=url_md))
 
-    # Process LED materials: evaluate how many LED strips have to be purchased.
-    for i, materials in enumerate(settings["assembly"]["leds"]):
-        # Make sure that the list of strips is not empty.
-        if len(materials) == 0:
-            print(f"Error in assembly list 'leds/{i}': no materials specified.")
-            return
+                shutil.copy(tiling_temp_dir.joinpath(f"tiling_{component.name}.pdf"), output_dir)
+    shutil.rmtree(tiling_temp_dir)
 
-        # Check if all strips in this assembly have the same LED density.
-        led_density = materials["leds"][materials[0]]["leds_per_meter"]
-        for m in materials[:1]:
-            if materials["leds"][m]["leds_per_meter"] != led_density:
-                print(f"Error in assembly list 'leds/{i}'. The components "
-                      f"'{materials[0]}' and '{m}' have a different amount of "
-                      f"LEDs per meter.")
+    if settings.has("assembly", "leds"):
+        # Process LED materials: evaluate how many LED strips have to be purchased.
+        for i, materials in enumerate(settings["assembly"]["leds"]):
+            # Make sure that the list of strips is not empty.
+            if len(materials) == 0:
+                print(f"Error in assembly list 'leds/{i}': no materials specified.")
                 return
 
-        # Evaluate how many LEDs should be inserted in a single strip and how
-        # many meters would be needed to have all tiles filled with LEDs.
-        leds_per_tile = np.floor(visible_tiles[0].perimeter() * led_density).astype(int)
-        required_led_length = len(visible_tiles) * leds_per_tile / led_density
+            # Check if all strips in this assembly have the same LED density.
+            led_density = materials_list["leds"][materials[0]]["leds_per_meter"]
+            for m in materials[:1]:
+                if materials_list["leds"][m]["leds_per_meter"] != led_density:
+                    print(f"Error in assembly list 'leds/{i}'. The components "
+                          f"'{materials[0]}' and '{m}' have a different amount of "
+                          f"LEDs per meter.")
+                    return
 
-        # Get the list of strips that have to be purchased, and their quantity.
-        components, cost, _ = wp3.named_tree_search([wp3.Struct(name=m,
-            value=materials["leds"][m]["number_of_leds"] / materials["leds"][m]["leds_per_meter"],
-            cost=materials["leds"][m].get("cost", 0))
-            for m in materials], required_led_length)
+            # Evaluate how many LEDs should be inserted in a single strip and how
+            # many meters would be needed to have all tiles filled with LEDs.
+            leds_per_tile_float = visible_tiles[0].perimeter() * led_density
+            if np.allclose(np.round(leds_per_tile_float), leds_per_tile_float):
+                leds_per_tile = np.round(leds_per_tile_float).astype(int)
+            else:
+                leds_per_tile = np.floor(visible_tiles[0].perimeter() * led_density).astype(int)
+            required_led_length = len(visible_tiles) * leds_per_tile / led_density
 
-        # For each strip type to be purchased, add a line in the bill of
-        # materials that specifies how many to buy.
-        for component, quantity in components:
-            led_notes = f"Leds per tile: {leds_per_tile}."
-            url = materials["leds"][component.name].get("url")
-            if url is not None:
-                led_notes += f" [url link]({url})"
-            bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=led_notes))
+            # Get the list of strips that have to be purchased, and their quantity.
+            components, cost, _ = wp3.named_tree_search([wp3.Struct(name=m,
+                value=materials_list["leds"][m]["number_of_leds"] / materials_list["leds"][m]["leds_per_meter"],
+                cost=materials_list["leds"][m].get("cost", 0))
+                for m in materials], required_led_length)
 
-        # If wattage information is provided for all strips, try to estimate the
-        # total wattage required to power the LEDs and add this information to
-        # the bill of materials (as a PSU item).
-        watts = sum(n*materials["leds"][c.name].get("watts", np.nan) for c, n in components)
-        if watts != np.nan:
-            bill_of_materials.append(wp3.BillItem(name=f"{watts}W Power Supply Unit", category=f"leds-{i}", notes="The power has been estimated. You might need a lower wattage."))
+            # For each strip type to be purchased, add a line in the bill of
+            # materials that specifies how many to buy.
+            for component, quantity in components:
+                led_notes = f"Leds per tile: {leds_per_tile}."
+                url = materials_list["leds"][component.name].get("url")
+                if url is not None:
+                    led_notes += f" [url link]({url})"
+                bill_of_materials.append(wp3.BillItem(name=component.name, quantity=quantity, cost=component.cost, category=f"leds-{i}", notes=led_notes))
 
-        # Knowing the number of LEDs per tile, we can provide a detailed scheme
-        # of the wiring. This information is stored in a PDF document that can
-        # be viewed by the user.
-        fig, ax = wp3.tight_figure(visible_tiles)
-        wp3.add_tiles_to_axes(visible_tiles, ax, copy=True, patch_color="white",
-                              border_color="lightgray")
-        routing.plot_detailed_routing(best_routing, visible_tiles, leds_per_tile, ax)
-        fig.savefig(output_dir.joinpath(f"wp3_routing_{leds_per_tile}_leds_per_tile.pdf"), bbox_inches='tight', dpi=500)
-        plt.close("all")
+            # If wattage information is provided for all strips, try to estimate the
+            # total wattage required to power the LEDs and add this information to
+            # the bill of materials (as a PSU item).
+            watts = sum(n*materials_list["leds"][c.name].get("watts", np.nan) for c, n in components)
+            if watts != np.nan:
+                bill_of_materials.append(wp3.BillItem(name=f"{watts}W Power Supply Unit", category=f"leds-{i}", notes="The power has been estimated. You might need a lower wattage."))
 
-        # Generate a component file for SignalRGB. The component in the
-        # "Layouts" page will be a rectangle with maximum dimenions equal to
-        # 100 - an arbitrary number that seems reasonable on my PC.
-        width, height = wp3.get_bounding_box_size(visible_tiles)
-        scale = 100 / max(width, height)
-        width *= scale
-        height *= scale
-        dev_name = f"WP3 {tile_type_specs[0]} {leds_per_tile} LEDs per tile"
-        signal_rgb_data = {
-            "ProductName": dev_name,
-            "DisplayName": dev_name,
-            "Brand": "WP3",
-            "Type": "custom",
-            "LedCount": int(len(visible_tiles) * leds_per_tile),
-            "Width": int(width),
-            "Height": int(height),
-            "LedMapping": [],
-            "LedCoordinates": [],
-            "LedNames": []
-        }
+            # Knowing the number of LEDs per tile, we can provide a detailed scheme
+            # of the wiring. This information is stored in a PDF document that can
+            # be viewed by the user.
+            fig, ax = wp3.tight_figure(visible_tiles)
+            wp3.add_tiles_to_axes(visible_tiles, ax, copy=True, patch_color="white",
+                                  border_color="lightgray")
+            routing.plot_detailed_routing(best_routing, visible_tiles, leds_per_tile, ax)
+            fig.savefig(output_dir.joinpath(f"wp3_routing_{leds_per_tile}_leds_per_tile.pdf"), bbox_inches='tight', dpi=500)
+            plt.close("all")
 
-        # Get the origin of the bounding box, to properly shift LEDs towards the
-        # bottom-left corner.
-        origin, _ = wp3.get_bounding_box(visible_tiles)
+            # Generate a component file for SignalRGB. The component in the
+            # "Layouts" page will be a rectangle with maximum dimenions equal to
+            # 100 - an arbitrary number that seems reasonable on my PC.
+            width, height = wp3.get_bounding_box_size(visible_tiles)
+            scale = 100 / max(width, height)
+            width *= scale
+            height *= scale
+            dev_name = f"WP3 {output_dir.name}"
+            signal_rgb_data = {
+                "ProductName": dev_name,
+                "DisplayName": dev_name,
+                "Brand": "WP3",
+                "Type": "custom",
+                "LedCount": int(len(visible_tiles) * leds_per_tile),
+                "Width": int(width),
+                "Height": int(height),
+                "LedMapping": [],
+                "LedCoordinates": [],
+                "LedNames": []
+            }
 
-        # Store, for each LED in the routing path, its name and coordinates.
-        for segment in routing.get_detailed_routing_points(best_routing, visible_tiles, leds_per_tile):
-            for led in segment:
-                led_idx = len(signal_rgb_data["LedMapping"])
-                signal_rgb_data["LedMapping"].append(led_idx)
-                led_coordinates = (led-origin)*scale
-                led_coordinates[1] = height - led_coordinates[1]
-                signal_rgb_data["LedCoordinates"].append(np.round(led_coordinates).astype(int).tolist())
-                signal_rgb_data["LedNames"].append(f"Led {led_idx} (tile {led_idx//leds_per_tile})")
+            # Get the origin of the bounding box, to properly shift LEDs towards the
+            # bottom-left corner.
+            origin, _ = wp3.get_bounding_box(visible_tiles)
 
-        # Save the generated data into a JSON file that can be imported into
-        # SignalRGB to define the custom LED geometry.
-        with open(output_dir.joinpath(f"wp3_signal_rgb_{leds_per_tile}_leds_per_tile.json"), "w") as f:
-            json.dump(signal_rgb_data, f)
+            # Store, for each LED in the routing path, its name and coordinates.
+            for segment in routing.get_detailed_routing_points(best_routing, visible_tiles, leds_per_tile):
+                for led in segment:
+                    led_idx = len(signal_rgb_data["LedMapping"])
+                    signal_rgb_data["LedMapping"].append(led_idx)
+                    led_coordinates = (led-origin)*scale
+                    led_coordinates[1] = height - led_coordinates[1]
+                    signal_rgb_data["LedCoordinates"].append(np.round(led_coordinates).astype(int).tolist())
+                    signal_rgb_data["LedNames"].append(f"Led {led_idx} (tile {led_idx//leds_per_tile})")
+
+            # Save the generated data into a JSON file that can be imported into
+            # SignalRGB to define the custom LED geometry.
+            with open(output_dir.joinpath(f"wp3_{output_dir.name}_{leds_per_tile}_leds_signal_rgb.json"), "w") as f:
+                json.dump(signal_rgb_data, f)
 
     # Add to the bill of materials one entry that corresponds to the number of
     # connectors to be purchased.
@@ -393,4 +410,19 @@ def main():
     wp3.BillItem.dump_to_markdown(bill_of_materials, output_dir.joinpath("bill_of_materials.md"))
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        if not isinstance(e, SystemExit):
+            traceback.print_exc()
+            print("---------------------------------------------------")
+            print("Execution stopped unexpectedly.")
+            print("Consider opening an issue at:")
+            print("  https://github.com/francofusco/wp3/issues/new")
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            print("Press CTRL+C to exit, or close the terminal window.")
+            try:
+                while True:
+                    pass
+            except KeyboardInterrupt:
+                pass

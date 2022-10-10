@@ -1,16 +1,46 @@
 from collections import UserDict
 from copy import deepcopy
-import os
 import pathlib
 from PyQt5.QtWidgets import QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 import sys
 import urllib.request
-import yaml
+import ruamel.yaml
+
+
+def fix_pyinstaller_path(relative_path):
+    """Return the path to a file bundled in the PyInstaller executable.
+
+    This function allows to retrieve files that have been added to the
+    PyInstaller executable using the --add-data option. These files are copied
+    at runtime in a temporary folder, whose path is stored in sys._MEIPASS. To
+    allow running the code both from source and from the PyInstaller-generated
+    executable, this function checks if sys._MEIPASS exists. If so, it will
+    append the given relative path and return the result. Otherwise, it will
+    append the relative path to the current working directory, `"."`.
+
+    Args:
+        relative_path: path to a file that should be found in the current
+            directory when the code is run from source, or that has been added
+            to the PyInstaller-generated executable via the --add-data option.
+    Returns:
+        Complete path to the resource.
+    """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = "."
+    return pathlib.Path(base_path).joinpath(relative_path)
 
 
 def open_project():
     # Create a QApplication to run all GUIs.
     app = QApplication([])
+
+    # If the directory "projects" is available, we want projects to be stored
+    # there. Otherwise, just use the current location as base path.
+    projects_dir = pathlib.Path("projects")
+    if not projects_dir.is_dir():
+        projects_dir = pathlib.Path(".")
 
     # Create a message box that asks the user to create or load a project.
     new_or_load_message_box = QMessageBox()
@@ -24,22 +54,18 @@ def open_project():
     # Wait for user's response, then take an action.
     new_or_load_message_box.exec()
     if new_or_load_message_box.clickedButton() == new_btn:
-        # Retrieve the default configuration file. Note that PyInstaller creates
-        # a temporary folder with the resources inside it, and stores its path
-        # in _MEIPASS, which is why the following code is necessary.
-        try:
-            cfg_path = sys._MEIPASS
-        except Exception:
-            cfg_path = "."
+        # When creating a new project, pre-fill the settings using the values
+        # stored in the default configuration file.
+        settings = SettingsDict.parser.load(fix_pyinstaller_path("config.yaml"))
 
-        settings = load_settings(pathlib.Path(cfg_path).joinpath("config.yaml"))
-
+        # Create a dialog window that allows the user to change the default
+        # project settings.
         new_project_dialog = QDialog()
         main_layout = QVBoxLayout()
         new_project_dialog.setLayout(main_layout)
         new_project_dialog.setWindowTitle("Project settings")
 
-        # Let the user create a new project.
+        # Create a form to enter the desired settings.
         form = QFormLayout()
         project_name = QLineEdit()
         form.addRow("Project name", project_name)
@@ -57,11 +83,16 @@ def open_project():
         # Buttons to confirm or cancel project creation.
         buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
 
-        def accept_if_directory_is_empty(dir_name, dialog):
-            if dir_name == "":
+        # Auxiliary function that validates the project name. A project name is
+        # valid if it points to a non-existing directory or to one that exists
+        # but is empty. If an invalid value is given, the function opens a
+        # message box and then returns. If the value is valid, it calls the
+        # accept() method on the dialog parameter.
+        def accept_if_directory_is_empty(project_name, dialog):
+            if project_name == "":
                 QMessageBox.critical(None, "Error", "Empty project name")
                 return
-            dir = pathlib.Path("projects").joinpath(dir_name)
+            dir = projects_dir.joinpath(project_name)
             if dir.exists():
                 if dir.is_file():
                     QMessageBox.critical(None, "Error", "Project name exists as a file")
@@ -71,75 +102,131 @@ def open_project():
                     return
             dialog.accept()
 
+        # Connect signals and slots to validate or cancel project creation.
         buttonBox.accepted.connect(lambda: accept_if_directory_is_empty(project_name.text(), new_project_dialog))
         buttonBox.rejected.connect(new_project_dialog.reject)
 
+        # Add the form and the buttons to the main layout of the dialog.
         main_layout.addLayout(form)
         main_layout.addWidget(buttonBox)
 
+        # If the user clicks on "Cancel", quit.
         if not new_project_dialog.exec():
             sys.exit()
 
-        project_dir = pathlib.Path("projects").joinpath(project_name.text())
+        # Create the directory that will contain the project.
+        project_dir = projects_dir.joinpath(project_name.text())
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        settings.read_only = False
+        # Change the default settings by using those provided in the form.
         settings["panels"]["type"] = tile_type.text()
         settings["panels"]["side_length"] = float(side_length.text())
         settings["panels"]["spacing"] = float(spacing.text())
         settings["panels"]["rows"] = int(rows.text())
         settings["panels"]["columns"] = int(columns.text())
-        settings.read_only = True
 
-        with open(project_dir.joinpath("config.yaml"), "w") as f:
-            yaml.dump(settings.data, f)
+        # Convert the dictionary into a SettingsDict
+        settings = SettingsDict(settings)
 
+        # Save the new settings to re-load the project in the future.
+        settings.save_to_yaml(project_dir.joinpath("config.yaml"))
+
+        # Return project location and settings.
         return project_dir, settings
     elif new_or_load_message_box.clickedButton() == load_btn:
         # Load an existing project.
         file_name, _ = QFileDialog.getOpenFileName(None, "Open project",
-                                                   ".", "YAML (*.yaml *.yml)")
+                                                   str(projects_dir),
+                                                   "YAML (*.yaml *.yml)")
         # If no selection was made, quit.
         if file_name == "":
             sys.exit()
 
         # Return project location and settings.
-        return pathlib.Path(file_name).parent, load_settings(file_name)
+        return pathlib.Path(file_name).parent, SettingsDict.from_yaml(file_name)
     else:
+        # The user clicked on "Cancel" or closed the window: quit.
         sys.exit()
 
 
-def load_settings(filename):
-    """Load configuration parameters from a YAML file.
+def update_initial_tiling(project_dir, settings, initial_tiling):
+    store_seq(project_dir, settings, initial_tiling, ["panels", "initial_tiling"])
+
+
+def update_cached_routing(project_dir, settings, routing):
+    store_seq(project_dir, settings, routing, ["routing", "cache"])
+
+
+def store_seq(project_dir, settings, sequence, namespace):
+    """Store the given sequence in a compact way in the `config.yaml` file.
 
     Args:
-        filename: name of a YAML file containing configuration parameters.
-    Returns:
-        settings: a dictionary containing the parameters.
+        project_dir: a Pathlib instance pointing to the project directory.
+        settings: a SettingsDict instance that will be updated by adding the
+            given sequence.
+        sequence: list (or possibly nested list of lists).
+        namespace: a list of keys that tells where the parameter is to be stored
+            in the YAML configuration file.
     """
-    # Parse the content of the provided YAML file.
-    with open(filename) as f:
-        settings = yaml.load(f, Loader=yaml.loader.SafeLoader)
-
-
-    if settings.get("materials", {}).get("sheets") is not None:
-        for k in settings["materials"]["sheets"]:
-            settings["materials"]["sheets"][k]["size"] = list(map(float, settings["materials"]["sheets"][k]["size"]))
-
-    # Return the processed settings.
-    return SettingsDict(settings)
+    # Convert the given sequence to a format used in ruamel and make sure that
+    # it is stored in a compact form.
+    item_seq = SettingsDict.parser.seq(sequence)
+    item_seq.fa.set_flow_style()
+    # Add the sequence to the SettingsDict in the proper place.
+    item = settings.data
+    for key in namespace[:-1]:
+        item = item[key]
+    item[namespace[-1]] = item_seq
+    # Overwrite current settings.
+    settings.save_to_yaml(project_dir.joinpath("config.yaml"))
 
 
 def load_materials(settings):
+    """Create a list of materials from different sources.
+
+    The list of materials is populated as follows:
+    - Try to download the file `materials.yaml` from the online repository;
+    - Add materials from a local `materials.yaml` list;
+    - Include materials from local project settings.
+
+    Args:
+        settings: a SettingsDict instance. Materials are pulled from the
+            namespaces `"materials/leds"` and `"materials/sheets"`.
+    Returns:
+        A SettingsDict with the list of materials.
+    """
+    # Try to initialize the list of materials from an online file.
     try:
-        with urllib.request.urlopen("https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml") as f:
-            materials = yaml.load(f, Loader=yaml.loader.SafeLoader)
-    except urllib.error.HTTPError:
-        with open("materials.yaml", "r") as f:
-            materials = yaml.load(f, Loader=yaml.loader.SafeLoader)
+        hosted_materials_file, _ = urllib.request.urlretrieve("https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml")
+        materials = SettingsDict.parser.load(hosted_materials_file)
+    except (urllib.error.URLError, urllib.error.HTTPError):
+        materials = {}
 
-    print(materials)
+    # Make sure that the materials dictionary contains the sub-dictionary
+    # "leds".
+    if "leds" not in materials:
+        materials["leds"] = {}
 
+    # Make sure that the materials dictionary contains the sub-dictionary
+    # "sheets".
+    if "sheets" not in materials:
+        materials["sheets"] = {}
+
+    # Try to read materials from a local file.
+    local_materials_file = pathlib.Path("materials.yaml")
+    if local_materials_file.is_file():
+        # Read the local list of materials.
+        local_materials = SettingsDict.parser.load(local_materials_file)
+
+        # Expand or replace materials using the content of the local file.
+        if "leds" in local_materials:
+            for k, v in local_materials["leds"].items():
+                materials["leds"][k] = v
+        if "sheets" in local_materials:
+            for k, v in local_materials["sheets"].items():
+                materials["sheets"][k] = v
+
+    # Expand or replace materials using the content of project settings.
     if settings.has("materials", "leds"):
         for k, v in settings["materials"].extract("leds").items():
             materials["leds"][k] = v
@@ -154,6 +241,7 @@ def load_materials(settings):
     for k in materials["sheets"]:
         materials["sheets"][k]["size"] = list(map(float, materials["sheets"][k]["size"]))
 
+    # Return the list of materials, as a SettingsDict instance.
     return SettingsDict(materials)
 
 
@@ -318,3 +406,23 @@ class SettingsDict(UserDict):
         # in the SettingsDict. Otherwise, check it recursively!
         value = self[key]
         return isinstance(value, SettingsDict) and value.has(*keys)
+
+    @staticmethod
+    def yaml_parser():
+        """Create a custom YAML parser."""
+        p = ruamel.yaml.YAML()
+        p.width = 1024
+        return p
+
+    parser = yaml_parser.__func__()
+
+    @staticmethod
+    def from_yaml(file_name):
+        """Create a SettingsDict instance from a YAML file."""
+        with open(file_name, "r") as f:
+            return SettingsDict(SettingsDict.parser.load(f))
+
+    def save_to_yaml(self, file_name):
+        """Dump a SettingsDict to a YAML file."""
+        with open(file_name, "w") as f:
+            SettingsDict.parser.dump(self.data, f)
