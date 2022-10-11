@@ -224,9 +224,9 @@ Another feature of the designer is that it is able to provide a detailed routing
 
 ![imgs/routing_detailed.png](imgs/routing_detailed.png)
 
-This scheme allows to locate each LED individually in the custom design. Furthermore, JSON files are produced that can be imported into SignalRGB to provide the necessary information to map each LED to a portion of the scene.
+This scheme allows to locate each LED individually in the custom design. Furthermore, JSON files are produced that can be imported into SignalRGB to provide the necessary information to map each LED to a portion of the scene. Four components are generated: one that closely resembles the detailed routing scheme, one that puts all LEDs belonging to a tile in its center (in this way, each tile has a uniform color), one that represent a single tile with LEDs on its border and one that represents a single tile, with LEDs in its center.
 
-For each given LED density, the routing scheme and the JSON file are generated respectively under the names `design_info/wp3_routing_XXX_leds_per_tile.pdf` and  `design_info/wp3_PROJECT-NAME_XXX_leds_signal_rgb.json`, where `XXX` is the number of LEDs that the designer determined can fit in a single panel.
+For each given LED density, the routing scheme and the JSON files are generated respectively under the names `design_info/wp3_routing_XXX_leds_per_tile.pdf` and  `design_info/wp3_signal_rgb_PROJECT-NAME_XXX_leds[VARIANT].json`, where `XXX` is the number of LEDs that the designer determined can fit in a single panel, `PROJECT-NAME` is, well, the name of the project and `[VARIANT]` is a string that depends on the type of exported component.
 
 
 #### Bill of materials
@@ -281,8 +281,13 @@ Grouped under `routing`.
 
 ### SignalRGB components settings
 
-| :construction: :construction_worker: work in progress: see [this issue](https://github.com/francofusco/wp3/issues/3). |
-| :-- |
+Grouped under `signal_rgb`.
+
+| Parameter | Type | Description |
+| :-------: | :--: | ----------- |
+| `name_prefix` | `str` | Optional. Prefix that should be used to identify the components inside SignalRGB. By default, the prefix is `WP3 PROJECT-NAME`.
+| `component_size` | `int` | Optional. Maximum width and height of the component inserted in SignalRGB's canvas, when unscaled. This applies to the largest dimension, the smallest will be evaluated to maintain the correct aspect ratio. |
+| `tile_size` | `int` | Optional. Maximum width and height of the single-tile component inserted in SignalRGB's canvas, when unscaled. This applies to the largest dimension, the smallest will be evaluated to maintain the correct aspect ratio. |
 
 
 ### Materials settings

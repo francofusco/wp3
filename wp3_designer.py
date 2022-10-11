@@ -362,17 +362,20 @@ def main():
             fig.savefig(output_dir.joinpath(f"wp3_routing_{leds_per_tile}_leds_per_tile.pdf"), bbox_inches='tight', dpi=500)
             plt.close("all")
 
+            # Options for SignalRGB components.
+            signal_rgb_settings = settings.get("signal_rgb", wp3.SettingsDict())
+
             # Generate a component file for SignalRGB. The component in the
             # "Layouts" page will be a rectangle with maximum dimenions equal to
             # 100 - an arbitrary number that seems reasonable on my PC.
             width, height = wp3.get_bounding_box_size(visible_tiles)
-            scale = 100 / max(width, height)
+            scale = signal_rgb_settings.get("component_size", 20) / max(width, height)
             width *= scale
             height *= scale
-            dev_name = f"WP3 {output_dir.name}"
+            signal_rgb_name_prefix = signal_rgb_settings.get("name_prefix", f"WP3 {output_dir.name}")
             signal_rgb_data = {
-                "ProductName": dev_name,
-                "DisplayName": dev_name,
+                "ProductName": signal_rgb_name_prefix,
+                "DisplayName": signal_rgb_name_prefix,
                 "Brand": "WP3",
                 "Type": "custom",
                 "LedCount": int(len(visible_tiles) * leds_per_tile),
@@ -394,13 +397,81 @@ def main():
                     signal_rgb_data["LedMapping"].append(led_idx)
                     led_coordinates = (led-origin)*scale
                     led_coordinates[1] = height - led_coordinates[1]
-                    signal_rgb_data["LedCoordinates"].append(np.round(led_coordinates).astype(int).tolist())
+                    signal_rgb_data["LedCoordinates"].append(led_coordinates.tolist())
                     signal_rgb_data["LedNames"].append(f"Led {led_idx} (tile {led_idx//leds_per_tile})")
 
             # Save the generated data into a JSON file that can be imported into
             # SignalRGB to define the custom LED geometry.
-            with open(output_dir.joinpath(f"wp3_{output_dir.name}_{leds_per_tile}_leds_signal_rgb.json"), "w") as f:
+            with open(output_dir.joinpath(f"wp3_signal_rgb_{output_dir.name}_{leds_per_tile}_leds.json"), "w") as f:
                 json.dump(signal_rgb_data, f)
+
+            # Generate and alternative file for SignalRGB with all LEDs in the
+            # centers of the tiles.
+            dev_name = f"{signal_rgb_name_prefix} centered"
+            signal_rgb_data["ProductName"] = dev_name
+            signal_rgb_data["DisplayName"] = dev_name
+            for i, t in enumerate(best_routing[0]):
+                led_coordinates = ((visible_tiles[t].center() - origin) * scale).tolist()
+                led_coordinates[1] = height - led_coordinates[1]
+                for j in range(leds_per_tile):
+                    signal_rgb_data["LedCoordinates"][leds_per_tile*i+j] = led_coordinates
+
+            # Save the generated data into a JSON file that can be imported into
+            # SignalRGB to define the custom LED geometry.
+            with open(output_dir.joinpath(f"wp3_signal_rgb_{output_dir.name}_{leds_per_tile}_leds_centered.json"), "w") as f:
+                json.dump(signal_rgb_data, f)
+
+            # Generate a file for SignalRGB corresponding to a single tile.
+            tile_width, tile_height = wp3.get_bounding_box_size([visible_tiles[0]])
+            tile_scale = signal_rgb_settings.get("tile_size", 10) / max(tile_width, tile_height)
+            tile_width *= tile_scale
+            tile_height *= tile_scale
+            tile_dev_name = f"{signal_rgb_name_prefix} tile"
+            tile_signal_rgb_data = {
+                "ProductName": tile_dev_name,
+                "DisplayName": tile_dev_name,
+                "Brand": "WP3",
+                "Type": "custom",
+                "LedCount": int(leds_per_tile),
+                "Width": int(tile_width),
+                "Height": int(tile_height),
+                "LedMapping": [],
+                "LedCoordinates": [],
+                "LedNames": []
+            }
+
+            # Get the origin of the bounding box, to properly shift LEDs towards
+            # the bottom-left corner.
+            tile_origin, _ = wp3.get_bounding_box([visible_tiles[0]])
+
+            # Store, for each LED in the tile, its name and coordinates.
+            for led in visible_tiles[0].sample_perimeter(leds_per_tile, 0, border=-1):
+                led_idx = len(tile_signal_rgb_data["LedMapping"])
+                tile_signal_rgb_data["LedMapping"].append(led_idx)
+                led_coordinates = (led-tile_origin)*tile_scale
+                led_coordinates[1] = tile_height - led_coordinates[1]
+                tile_signal_rgb_data["LedCoordinates"].append(led_coordinates.tolist())
+                tile_signal_rgb_data["LedNames"].append(f"Led {led_idx}")
+
+            # Save the generated data into a JSON file that can be imported into
+            # SignalRGB to define the custom LED geometry.
+            with open(output_dir.joinpath(f"wp3_signal_rgb_{output_dir.name}_{leds_per_tile}_leds_tile.json"), "w") as f:
+                json.dump(tile_signal_rgb_data, f)
+
+            # Generate and alternative file for SignalRGB with all LEDs in the
+            # centers of the tile.
+            tile_dev_name = f"{signal_rgb_name_prefix} tile centered"
+            tile_signal_rgb_data["ProductName"] = tile_dev_name
+            tile_signal_rgb_data["DisplayName"] = tile_dev_name
+            led_coordinates = ((visible_tiles[0].center() - tile_origin) * tile_scale).tolist()
+            led_coordinates[1] = tile_height - led_coordinates[1]
+            for i in range(leds_per_tile):
+                tile_signal_rgb_data["LedCoordinates"][i] = led_coordinates
+
+            # Save the generated data into a JSON file that can be imported into
+            # SignalRGB to define the custom LED geometry.
+            with open(output_dir.joinpath(f"wp3_signal_rgb_{output_dir.name}_{leds_per_tile}_leds_tile_centered.json"), "w") as f:
+                json.dump(tile_signal_rgb_data, f)
 
     # Add to the bill of materials one entry that corresponds to the number of
     # connectors to be purchased.
