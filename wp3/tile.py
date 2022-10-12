@@ -165,6 +165,10 @@ class Tile(object):
         return type(self)(self.row, self.col, self.spacing, self.side_length,
                           self.variant)
 
+    def center(self):
+        """Center coordinates, as a NumPy array."""
+        return np.array([self.x, self.y])
+
     def vertices(self, border=1.0):
         """List of vertices, as a NumPy array.
 

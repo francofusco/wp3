@@ -1,10 +1,13 @@
 from collections import UserDict
 from copy import deepcopy
+import logging
 import pathlib
 from PyQt5.QtWidgets import QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 import sys
 import urllib.request
 import ruamel.yaml
+
+logger = logging.getLogger(__name__)
 
 
 def fix_pyinstaller_path(relative_path):
@@ -25,11 +28,16 @@ def fix_pyinstaller_path(relative_path):
     Returns:
         Complete path to the resource.
     """
+    logger.debug(f"Resolving relative path '{relative_path}'.")
     try:
         base_path = sys._MEIPASS
+        logger.debug(f"sys._MEIPASS found: running as PyInstaller exe.")
     except Exception:
         base_path = "."
-    return pathlib.Path(base_path).joinpath(relative_path)
+        logger.debug(f"sys._MEIPASS not found: running as regular script.")
+    resolved_path = pathlib.Path(base_path).joinpath(relative_path)
+    logger.debug(f"'{resolved_path}' resolved to '{resolved_path}'.")
+    return resolved_path
 
 
 def open_project():
@@ -40,6 +48,8 @@ def open_project():
     # there. Otherwise, just use the current location as base path.
     projects_dir = pathlib.Path("projects")
     if not projects_dir.is_dir():
+        logger.debug("Directory 'projects' not found: setting projects root as "
+                     "current directory.")
         projects_dir = pathlib.Path(".")
 
     # Create a message box that asks the user to create or load a project.
@@ -52,8 +62,12 @@ def open_project():
     new_or_load_message_box.addButton("Cancel", QMessageBox.RejectRole)
 
     # Wait for user's response, then take an action.
+    logger.debug("Waiting for user to interact with message box.")
     new_or_load_message_box.exec()
+    logger.debug(f"User clicked on '{new_or_load_message_box.clickedButton()}'.")
     if new_or_load_message_box.clickedButton() == new_btn:
+        logger.debug("Creating new project.")
+
         # When creating a new project, pre-fill the settings using the values
         # stored in the default configuration file.
         settings = SettingsDict.parser.load(fix_pyinstaller_path("config.yaml"))
@@ -110,13 +124,19 @@ def open_project():
         main_layout.addLayout(form)
         main_layout.addWidget(buttonBox)
 
+        logger.debug("Created form dialog to create new project from given "
+                     "settings. Waiting for user interaction.")
+
         # If the user clicks on "Cancel", quit.
         if not new_project_dialog.exec():
+            logger.debug("The user did not validate the form. Quitting.")
             sys.exit()
 
         # Create the directory that will contain the project.
         project_dir = projects_dir.joinpath(project_name.text())
         project_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.debug(f"Creating new project in '{project_dir}'.")
 
         # Change the default settings by using those provided in the form.
         settings["panels"]["type"] = tile_type.text()
@@ -129,31 +149,43 @@ def open_project():
         settings = SettingsDict(settings)
 
         # Save the new settings to re-load the project in the future.
+        logger.debug("Creating the file 'config.yaml' for the project.")
         settings.save_to_yaml(project_dir.joinpath("config.yaml"))
 
         # Return project location and settings.
         return project_dir, settings
     elif new_or_load_message_box.clickedButton() == load_btn:
+        logger.debug("Loading project.")
+
         # Load an existing project.
         file_name, _ = QFileDialog.getOpenFileName(None, "Open project",
                                                    str(projects_dir),
                                                    "YAML (*.yaml *.yml)")
+        logger.debug(f"User selected file '{file_name}'.")
+
         # If no selection was made, quit.
         if file_name == "":
+            logger.debug("File name is empty: quitting.")
             sys.exit()
 
         # Return project location and settings.
-        return pathlib.Path(file_name).parent, SettingsDict.from_yaml(file_name)
+        project_dir = pathlib.Path(file_name).parent
+        logger.debug(f"Project directory: '{project_dir}'.")
+        return project_dir, SettingsDict.from_yaml(file_name)
     else:
+        logger.debug("The user did not click on neither 'New' nor 'Load'. "
+                     "Quitting.")
         # The user clicked on "Cancel" or closed the window: quit.
         sys.exit()
 
 
 def update_initial_tiling(project_dir, settings, initial_tiling):
+    logger.debug("Saving tiling into 'config.yaml'.")
     store_seq(project_dir, settings, initial_tiling, ["panels", "initial_tiling"])
 
 
 def update_cached_routing(project_dir, settings, routing):
+    logger.debug("Saving routing into 'config.yaml'.")
     store_seq(project_dir, settings, routing, ["routing", "cache"])
 
 
@@ -172,12 +204,16 @@ def store_seq(project_dir, settings, sequence, namespace):
     # it is stored in a compact form.
     item_seq = SettingsDict.parser.seq(sequence)
     item_seq.fa.set_flow_style()
+    logger.debug("Converted input sequence into ruamel-friendly format.")
     # Add the sequence to the SettingsDict in the proper place.
     item = settings.data
     for key in namespace[:-1]:
+        logger.debug(f"Accessing namespace '{key}'.")
         item = item[key]
+    logger.debug(f"Storing sequence into '{namespace[-1]}'.")
     item[namespace[-1]] = item_seq
     # Overwrite current settings.
+    logger.debug(f"Overwriting 'config.yaml'.")
     settings.save_to_yaml(project_dir.joinpath("config.yaml"))
 
 
@@ -197,25 +233,32 @@ def load_materials(settings):
     """
     # Try to initialize the list of materials from an online file.
     try:
-        hosted_materials_file, _ = urllib.request.urlretrieve("https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml")
+        materials_url = "https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml"
+        logger.debug(f"Sending HTTP request to retrieve '{materials_url}'.")
+        hosted_materials_file, _ = urllib.request.urlretrieve(materials_url)
         with open(hosted_materials_file, "r") as f:
             materials = SettingsDict.parser.load(f)
+        logger.info(f"Loaded list of materials from '{materials_url}'.")
     except (urllib.error.URLError, urllib.error.HTTPError):
+        logger.debug(f"HTTP request failed.")
         materials = {}
 
     # Make sure that the materials dictionary contains the sub-dictionary
     # "leds".
     if "leds" not in materials:
+        logger.debug("Adding namespace 'leds' to list of materials.")
         materials["leds"] = {}
 
     # Make sure that the materials dictionary contains the sub-dictionary
     # "sheets".
     if "sheets" not in materials:
+        logger.debug("Adding namespace 'sheets' to list of materials.")
         materials["sheets"] = {}
 
     # Try to read materials from a local file.
     local_materials_file = pathlib.Path("materials.yaml")
     if local_materials_file.is_file():
+        logger.info("Updating list of materials from 'materials.yaml'.")
         # Read the local list of materials.
         with open(local_materials_file, "r") as f:
             local_materials = SettingsDict.parser.load(f)
@@ -223,27 +266,57 @@ def load_materials(settings):
         # Expand or replace materials using the content of the local file.
         if "leds" in local_materials:
             for k, v in local_materials["leds"].items():
+                logger.debug(f"Updating entry for '{k}' (leds).")
                 materials["leds"][k] = v
         if "sheets" in local_materials:
             for k, v in local_materials["sheets"].items():
+                logger.debug(f"Updating entry for '{k}' (sheets).")
                 materials["sheets"][k] = v
 
     # Expand or replace materials using the content of project settings.
+    logger.info("Updating list of materials from 'config.yaml'.")
     if settings.has("materials", "leds"):
         for k, v in settings["materials"].extract("leds").items():
+            logger.debug(f"Updating entry for '{k}' (leds).")
             materials["leds"][k] = v
 
     if settings.has("materials", "sheets"):
         for k, v in settings["materials"].extract("sheets").items():
+            logger.debug(f"Updating entry for '{k}' (sheets).")
             materials["sheets"][k] = v
 
-    # Make sure that panel sizes are parsed as arrays of floats. By default,
-    # they are read as arrays of strings. This also allows to use inf as a
-    # value for panels whose cost is dependent on the size.
     for k in materials["sheets"]:
+        # Make sure that panel sizes are parsed as arrays of floats. By default,
+        # they are read as arrays of strings. This also allows to use inf as a
+        # value for panels whose cost is dependent on the size.
+        logger.debug(f"Casting 'size' to floats for material '{k}'.")
         materials["sheets"][k]["size"] = list(map(float, materials["sheets"][k]["size"]))
 
+        # Make sure that the cost of the sheet is positive, or at least
+        # non-negative.
+        cost = materials["sheets"][k].get("cost")
+        if cost is None:
+            logger.warning(f"No cost specified for sheet '{k}'.")
+        elif cost == 0:
+            logger.warning(f"Cost of sheet '{k}' is null.")
+        elif cost < 0:
+            raise RuntimeError(f"Cost of sheet '{k}' is negative.")
+
+    for k in materials["leds"]:
+        # Make sure that the cost of the LED strip is positive, or at least
+        # non-negative.
+        cost = materials["leds"][k].get("cost")
+        if cost is None:
+            logger.warning(f"No cost specified for leds '{k}'.")
+        elif cost == 0:
+            logger.warning(f"Cost of leds '{k}' is null.")
+        elif cost < 0:
+            raise RuntimeError(f"Cost of leds '{k}' is negative.")
+
     # Return the list of materials, as a SettingsDict instance.
+    logger.debug(f"List of materials loaded. There are "
+                  f"{len(materials['sheets'])} sheets and "
+                  f"{len(materials['leds'])} leds.")
     return SettingsDict(materials)
 
 
@@ -299,7 +372,7 @@ class SettingsDict(UserDict):
         # blocks every time a mandatory key is to be accessed. Nonetheless, if
         # such behavior is preferable, one can set use_exceptions to True to
         # have a KeyError raised instead.
-        self.use_exceptions = False
+        self.use_exceptions = True
 
         # Initialize the dictionary by calling the constructor of the base
         # class. Upon initialization, the dictionary is set in writeable mode
@@ -337,6 +410,7 @@ class SettingsDict(UserDict):
             if self.use_exceptions:
                 raise KeyError(msg)
             else:
+                logger.debug(msg)
                 print(msg)
                 sys.exit()
 
