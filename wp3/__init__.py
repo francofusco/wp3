@@ -1,5 +1,6 @@
 from .hexagon import Hexagon
 from .mpl import add_tiles_to_axes, tight_figure, toggle_tile_if_clicked, toggle_all_tiles, wait_for_exit
+from .octagon import Octagon
 from .optimization import Routing, named_tree_search
 from .rectangle import Rectangle
 from .settings import load_materials, open_project, SettingsDict, update_cached_routing, update_initial_tiling
