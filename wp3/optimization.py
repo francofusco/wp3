@@ -1,5 +1,8 @@
 from .tile import Tile, unique_vertices
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class Routing:
@@ -71,6 +74,12 @@ class Routing:
             self.cuts = [c[-1] for c in np.array_split(np.arange(self.n_tiles), segments)[:-1]]
         else:
             self.cuts = []
+
+        logger.debug(f"Create routing problem with {self.n_tiles} and "
+                     f"{self.n_vertices} unique vertices. The routing consists "
+                     f"of {segments} segments, with cuts made at the samples "
+                     f"{self.cuts}. The list that gives for each tile which "
+                     f"vertices it contains is:\n{self.tiles}")
 
     def random_sample(self):
         """Create a routing sample at random.
@@ -317,18 +326,23 @@ class Routing:
         """
         # If no warm-start was given, start from a random sample.
         if best_sample is None:
+            logger.debug("Creating initial candidate at random.")
             best_sample = self.random_sample()
 
         # Get the cost of the available routing.
         best_cost = self.evaluate_cost(best_sample)
+        logger.debug(f"Initial candidate cost: {best_cost}. "
+                     f"Candidate:\n{best_sample.tolist()}")
 
         # Make sure that the swap distance makes sense.
         max_swap_distance = max(1, min(self.n_tiles-1, max_swap_distance))
+        logger.debug(f"Using {max_swap_distance=}.")
 
         # Try to refine the solution. Allow the user to interrupt the search via
         # keyboard interrupts, aka, SIGINT or CTRL+C.
         print("Routing in progress (CTRL+C to interrupt).")
         try:
+            logger.debug("Routing started.")
             for iter in range(max_iterations):
                 # Show progress information, so that the user can estimate the
                 # time to completion.
@@ -343,18 +357,27 @@ class Routing:
                 # Select a sample and try to improve it. The samples will
                 # usually be a random guess, but it could sometimes be the
                 # current optimal solution.
-                sample = best_sample.copy() if random_start_probability < np.random.uniform() else self.random_sample()
+                pick_best = random_start_probability < np.random.uniform()
+                sample = best_sample.copy() if pick_best else self.random_sample()
                 sample, cost = self.improve(sample, self.evaluate_cost(sample),
                                             attemps_per_improvement,
                                             max_swap_distance, mixed_mutations)
+                logger.debug(f"Routing iteration {iter}. Started from "
+                             f"{'best' if pick_best else 'random'} sample. "
+                             f"Generated new sample with cost {cost}.")
+
                 # Keep track of the running best.
                 if cost < best_cost:
                     best_sample = sample.copy()
                     best_cost = cost
+                    logger.debug(f"Found better candidate! Cost: {best_cost}. "
+                                 f"Candidate:\n{best_sample.tolist()}")
         except KeyboardInterrupt:
-            pass
+            logger.debug("Routing interrupted by user.")
         # Print a new line since print calls in the loop remain on the same one.
         print()
+        logger.debug(f"Routing completed. Best cost: {best_cost}. "
+                     f"Candidate:\n{best_sample.tolist()}")
 
         # Return the best routing found so far.
         return best_sample
@@ -453,23 +476,41 @@ def tree_search(choices, target, sequence=None, current_value=0, current_cost=0)
     best_cost = np.inf
     best_value = -np.inf
 
+    # Print debug output using a smart indentation to allow easier debugging.
+    msg_indent = "  " * len(sequence)
+    logger.debug(f"{msg_indent}Depth: {len(sequence)}. Value: "
+                 f"{current_value}/{target}. Current cost: {current_cost}.")
+
     for i, elem in enumerate(choices):
+        logger.debug(f"{msg_indent}Exploring choice {i}.")
+
         # Add value and cost
         new_value = current_value + elem.value
         new_cost = current_cost + elem.cost
         new_sequence = sequence + [elem]
+
+        if new_cost > best_cost:
+            logger.debug(f"{msg_indent}Early pruning of choice {i} due to "
+                         f"excessive partial cost {new_cost}.")
+            continue
 
         # If we did not reach a terminal state, get it using recursion.
         if new_value < target:
             new_sequence, new_cost, new_value = \
                 tree_search(choices[i:], target, sequence=new_sequence,
                             current_value=new_value, current_cost=new_cost)
+        logger.debug(f"{msg_indent}Choice {i}: value={new_value}/{target}, "
+                     f"cost={new_cost}.")
 
         # Check the current solution. If it is the best found so far, store it.
         if new_cost < best_cost or (new_cost == best_cost and (new_value > best_value or (new_value == best_value and len(new_sequence) < len(best_sequence)))):
             best_cost = new_cost
             best_value = new_value
             best_sequence = new_sequence
+            logger.debug(f"{msg_indent}Choice {i} is now the best candidate.")
+
+    logger.debug(f"{msg_indent}Search completed. Value: {best_value}/{target}. "
+                 f"Cost: {best_cost}.")
 
     # Return the optimal result, with its cost and value as well.
     return best_sequence, best_cost, best_value
@@ -495,6 +536,8 @@ def named_tree_search(named_choices, target):
         best_cost: cost of the sequence.
         best_value: total value of the sequence.
     """
+    logger.debug("Performing optimization using 'tree_search'.")
+
     # Solve the problem using the vanilla tree_search.
     best_sequence, best_cost, best_value = tree_search(named_choices, target)
 
@@ -505,6 +548,8 @@ def named_tree_search(named_choices, target):
     # Prepare a list of unique items and their frequency.
     unique_elements = [best_sequence[0]]
     frequency = [1]
+    logger.debug(f"Initializing frequency of element "
+                 f"'{unique_elements[0].name}' to 1.")
 
     # Scan all items in the solution (except the first one, which has been
     # processed already).
@@ -513,9 +558,12 @@ def named_tree_search(named_choices, target):
         # frequency. Otherwise, add it and set its frequency to one.
         if elem.name == unique_elements[-1].name:
             frequency[-1] += 1
+            logger.debug(f"Increasing frequency of '{elem.name}' to "
+                         f"'{frequency[-1]}'.")
         else:
             unique_elements.append(elem)
             frequency.append(1)
+            logger.debug(f"Added new element '{elem.name}'.")
 
     # Return the solution as a list of (item, amount) tuples.
     return [(elem, freq) for elem, freq in zip(unique_elements, frequency)], best_cost, best_value

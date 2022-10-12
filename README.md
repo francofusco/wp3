@@ -33,6 +33,9 @@
 	- [SignalRGB integration](#signalrgb-integration)
 		- [Preparing the Pico controller](#preparing-the-pico-controller)
 		- [Adding the panels into SignalRGB's layouts](#adding-the-panels-into-signalrgbs-layouts)
+- [Contributing and reporting issues](#contributing-and-reporting-issues)
+	- [Troubleshooting](#troubleshooting)
+	- [Instructions for developers](#instructions-for-developers)
 
 <!-- /TOC -->
 
@@ -472,3 +475,20 @@ Just for reference, this is how I created the cardboard walls:
 Depending on which LED density you decided to use, copy the corresponding json files into the directory `Documents\WhirlwindFX\Components` and restart SignalRGB. In the *Devices* page, click on the controller that you are using and click on the "+" button to add a component. In the brand filter, scroll down and look for *WP3*, then select the appropriate component. Go to the *Layouts* page and position the panels in the canvas. You are all set :partying_face:
 
 ![imgs/signal_rgb_integration.gif](imgs/signal_rgb_integration.gif)
+
+
+# Contributing and reporting issues
+
+## Troubleshooting
+
+If you happen to find a problem with the designer, do not hesitate to reach to me. The best way to do so is to [open an issue](https://github.com/francofusco/wp3/issues/new) describing the problem. Try to describe the problem you are facing, and perhaps include your `config.yaml`, as well as the log file `.wp3_last_run.log` that is generated after each time you run the designer.
+
+
+## Instructions for developers
+
+| :construction: :construction_worker: This section is to be written. |
+
+For the moment, I will just keep a short list of things that will be worth mentioning:
+
+- To create the executable you will need to download the PyInstaller package, *e.g.*, `pip install pyinstaller` or `conda install pyinstaller`. Once that is done, you can run (in an Anaconda terminal) the `build_exe.bat` script to create an executable under Windows.
+- While log files are generated automatically, you can also change verbosity level from the command line. Type `python wp3_designer.py --help` for the list of arguments that you can pass.

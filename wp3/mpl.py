@@ -1,6 +1,9 @@
 from .struct import Struct
 from .tile import get_bounding_box
+import logging
 import matplotlib.pyplot as plt
+
+logger = logging.getLogger(__name__)
 
 
 def tight_figure(tiles):
@@ -56,12 +59,17 @@ def toggle_tile_if_clicked(mouse_event, tile, axis):
         axis: the matplotlib.axes.Axes instance that contains the patches of
             this tile. It is needed to update the figure.
     """
+    logger.debug(f"New mouse event for tile ({tile.row}, {tile.col}).")
+
     # Ignore events fired when the mouse is outside the drawing area.
     if mouse_event.xdata is None or mouse_event.ydata is None:
+        logger.debug(f"Event rejected due to empty coordinates: "
+                     f"{mouse_event.xdata=}, {mouse_event.ydata=}.")
         return
 
     # Toggle the tile if the mouse is inside it.
     if tile.contains(mouse_event.xdata, mouse_event.ydata):
+        logger.debug(f"Tile ({tile.row}, {tile.col}) clicked.")
         tile.toggle_visible()
         axis.figure.canvas.draw()
 
@@ -84,12 +92,16 @@ def toggle_all_tiles(keyboard_event, tiles, axis):
         axis: the matplotlib.axes.Axes instance that contains the patches of
             the tiles. It is needed to update the figure.
     """
+    logger.debug(f"New keyboard event. {keyboard_event.key=}.")
+
     # Give a name to the commands and exit if the corresponding keys were not
     # pressed.
     TOGGLE = " "
     HIDE = "a"
     SHOW = "ctrl+a"
     if keyboard_event.key not in [TOGGLE, SHOW, HIDE]:
+        logger.debug("The keyboard event was ignored (the key did not match "
+                     "any target action).")
         return
 
     # Change visibility of each tile depending on the given command.
@@ -101,7 +113,7 @@ def toggle_all_tiles(keyboard_event, tiles, axis):
         elif keyboard_event.key == HIDE:
             tile.set_visible(False)
         else:
-            print(f"WARNING: unrecognised (and unhandled) key '{keyboard_event.key}'")
+            logger.warning(f"Unrecognised (and unhandled) key '{keyboard_event.key}'")
             break
 
     # Update the plot.
@@ -117,6 +129,9 @@ def wait_for_exit(figure):
     Args:
         figure: a (currently open) matplotlib.pyplot.Figure innstance.
     """
+    logger.debug("Creating exit_helper to wait until the target figure is "
+                 "closed.")
+
     # Create a structure with the field 'keep_running' set to True, then add
     # a callback that changes it to False when the target figure is closed.
     exit_helper = Struct(keep_running = True)
@@ -124,5 +139,7 @@ def wait_for_exit(figure):
 
     # Stall in a loop until the figure is closed. Call 'pause' to ensure that
     # figures are updated regularly.
+    logger.debug("Waiting for the target figure to be closed.")
     while exit_helper.keep_running:
-        plt.pause(0.001)
+        plt.pause(0.05)
+    logger.debug("Target figure was closed.")
