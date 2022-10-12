@@ -684,11 +684,12 @@ if __name__ == "__main__":
             # over-complicated formatting choice is that, in this way, errors
             # can be located more easily in log files.
             wraplen = 65
-            msg = ["Execution stopped unexpectedly. Reason:"]
-            msg += [ "  " + s for s in textwrap.wrap(f"{type(e).__name__}: {e}", wraplen-2)]
-            msg += textwrap.wrap(("If this is not the result of your mistake, "
-                                  "consider opening an issue at:"), wraplen)
-            msg += ["    https://github.com/francofusco/wp3/issues/new"]
+            msg = ["Execution stopped unexpectedly. Reason:", ""]
+            msg += ["> " + s for s in textwrap.wrap(f"{type(e).__name__}: {e}", wraplen-2)]
+            msg += [""]
+            msg += textwrap.wrap("If this is not the result of your mistake, "
+                                 "consider opening an issue at: "
+                                 "https://github.com/francofusco/wp3/issues/new", wraplen)
             max_len = max(map(len, msg))
             headline = "+" + "-" * (max_len+2) + "+"
             msg_ind = ["| " + m + " " * (max_len - len(m)) + " |" for m in msg]
