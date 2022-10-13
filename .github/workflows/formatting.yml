@@ -10,4 +10,4 @@ jobs:
       - uses: psf/black@stable
         with:
             options: "--check --verbose --diff --color"
-      - run: python comment_checker . wp3
+      - run: python comment_checker.py . wp3
