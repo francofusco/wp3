@@ -1,6 +1,5 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Formatting](https://github.com/francofusco/wp3/actions/workflows/formatting.yml/badge.svg)](https://github.com/francofusco/wp3/actions/workflows/formatting.yml)
-
+[![Formatting](https://github.com/francofusco/wp3/workflows/Formatting/badge.svg)](https://github.com/francofusco/wp3/actions/workflows/formatting.yml)
 
 **TABLE OF CONTENTS**
 
@@ -496,3 +495,5 @@ For the moment, I will just keep a short list of things that will be worth menti
 
 - To create the executable you will need to download the PyInstaller package, *e.g.*, `pip install pyinstaller` or `conda install pyinstaller`. Once that is done, you can run (in an Anaconda terminal) the `build_exe.bat` script to create an executable under Windows.
 - While log files are generated automatically, you can also change verbosity level from the command line. Type `python wp3_designer.py --help` for the list of arguments that you can pass.
+- The code should be formatted using [Black](https://github.com/psf/black). To do this, include the package to your virtual environment (`pip install black` or `conda install black`) and run it from the top-level directory of the project: `black .` or `python -m black .`.
+- You also need to check comments manually using the script `comment_checker.py`. To do so, run `python comment_checker.py . wp3`: it will scan all python files and tell you which ones contain comments that are too long, and at which lines. You have to manually edit them, unluckily... You can add the option `--annotate` to overwrite the files by adding the marker `<<<<<` at the end of long comment lines. In this way, you can open the files and do a search for `<<<<<` to quickly find lines that need fixing.
