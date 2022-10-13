@@ -483,7 +483,8 @@ def main():
                 )
                 return
 
-            # Get the list of sheets that have to be purchased, and their quantity.
+            # Get the list of sheets that have to be purchased, and their
+            # quantity.
             components, cost, _ = wp3.named_tree_search(
                 [panel_material_data[m] for m in materials], len(visible_tiles)
             )
@@ -493,8 +494,8 @@ def main():
             )
 
             # For each sheet type to be purchased, add a line in the bill of
-            # materials that specifies how many sheets to buy (or their length in
-            # the case of variable-length sheets).
+            # materials that specifies how many sheets to buy (or their length
+            # in the case of variable-length sheets).
             for component, quantity in components:
                 logger.debug(
                     f"Adding {quantity} units of '{component}' to the "
@@ -539,7 +540,8 @@ def main():
     shutil.rmtree(tiling_temp_dir)
 
     if settings.has("assembly", "leds"):
-        # Process LED materials: evaluate how many LED strips have to be purchased.
+        # Process LED materials: evaluate how many LED strips have to be
+        # purchased.
         for i, materials in enumerate(settings["assembly"]["leds"]):
             logger.debug(f"Processing leds assembly #{i}.")
 
@@ -592,7 +594,8 @@ def main():
                 f"length: {required_led_length}."
             )
 
-            # Get the list of strips that have to be purchased, and their quantity.
+            # Get the list of strips that have to be purchased, and their
+            # quantity.
             components, cost, _ = wp3.named_tree_search(
                 [
                     wp3.Struct(
@@ -631,9 +634,9 @@ def main():
                     )
                 )
 
-            # If wattage information is provided for all strips, try to estimate the
-            # total wattage required to power the LEDs and add this information to
-            # the bill of materials (as a PSU item).
+            # If wattage information is provided for all strips, try to estimate
+            # the total wattage required to power the LEDs and add this
+            # information to the bill of materials (as a PSU item).
             watts = sum(
                 n * materials_list["leds"][c.name].get("watts", np.nan)
                 for c, n in components
@@ -663,9 +666,9 @@ def main():
                     f"{', '.join(materials_with_no_watts)}."
                 )
 
-            # Knowing the number of LEDs per tile, we can provide a detailed scheme
-            # of the wiring. This information is stored in a PDF document that can
-            # be viewed by the user.
+            # Knowing the number of LEDs per tile, we can provide a detailed
+            # scheme of the wiring. This information is stored in a PDF document
+            # that can be viewed by the user.
             fig, ax = wp3.tight_figure(visible_tiles)
             wp3.add_tiles_to_axes(
                 visible_tiles,
@@ -717,8 +720,8 @@ def main():
                 "LedNames": [],
             }
 
-            # Get the origin of the bounding box, to properly shift LEDs towards the
-            # bottom-left corner.
+            # Get the origin of the bounding box, to properly shift LEDs towards
+            # the bottom-left corner.
             origin, _ = wp3.get_bounding_box(visible_tiles)
 
             # Store, for each LED in the routing path, its name and coordinates.

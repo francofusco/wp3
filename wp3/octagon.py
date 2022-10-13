@@ -10,8 +10,8 @@ class Octagon(Tile):
 
     def calculate_center(self):
         if self.variant == 0:
-            # Center coordinates can be calculated from those of the sourrounding
-            # rectangle.
+            # Center coordinates can be calculated from those of the
+            # sourrounding rectangle.
             tile_size = (1 + np.sqrt(2)) * self.side_length
             x = (
                 (tile_size + self.spacing) * self.col

@@ -61,11 +61,11 @@ class Routing:
                 border=0.5
             ).reshape(1, -1, 2)
 
-            # Using Einstein's summation, convert displacement vectors into scalars.
-            # The result is a matrix D whose elements D[i,j] are the squared
-            # distances between vertices[i] and the j-th vertex of the tile. By
-            # taking argmin along the first axis, we are left with six values:
-            # they represent the indices of each vertex of the tile.
+            # Using Einstein's summation, convert displacement vectors into
+            # scalars. The result is a matrix D whose elements D[i,j] are the
+            # squared distances between vertices[i] and the j-th vertex of the
+            # tile. By taking argmin along the first axis, we are left with six
+            # values: they represent the indices of each vertex of the tile.
             tiles_indices.append(
                 np.einsum(
                     "ijk,ijk->ij", vector_distances, vector_distances
