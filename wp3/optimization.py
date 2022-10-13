@@ -32,15 +32,19 @@ class Routing:
         """
         # It does not make sense to perform routing for less than two tiles.
         if len(tiles) < 2:
-            raise ValueError(f"The number of tiles in a routing problem should "
-                             f"be at least two, not {len(tiles)}.")
+            raise ValueError(
+                "The number of tiles in a routing problem should "
+                f"be at least two, not {len(tiles)}."
+            )
 
         # The most segments we can produce is one per tile.
         if not (1 <= segments <= len(tiles)):
-            raise ValueError(f"Invalid number of segments given to the routing "
-                             f"algorithm. The number of segments must be "
-                             f"between 1 and {len(tiles)} (number of tiles). "
-                             f"Received value: {segments}.")
+            raise ValueError(
+                "Invalid number of segments given to the routing "
+                "algorithm. The number of segments must be "
+                f"between 1 and {len(tiles)} (number of tiles). "
+                f"Received value: {segments}."
+            )
 
         # List of all unique 2D points in the group of tile vertices.
         self.vertices = unique_vertices(tiles)
@@ -53,14 +57,20 @@ class Routing:
             # squared distances, such that vector_distances[i,j] provides the
             # displacement between the vertex vertices[i] and the j-th vertex of
             # the tile.
-            vector_distances = self.vertices.reshape(-1, 1, 2) - tile.vertices(border=0.5).reshape(1, -1, 2)
+            vector_distances = self.vertices.reshape(-1, 1, 2) - tile.vertices(
+                border=0.5
+            ).reshape(1, -1, 2)
 
             # Using Einstein's summation, convert displacement vectors into scalars.
             # The result is a matrix D whose elements D[i,j] are the squared
             # distances between vertices[i] and the j-th vertex of the tile. By
             # taking argmin along the first axis, we are left with six values:
             # they represent the indices of each vertex of the tile.
-            tiles_indices.append(np.einsum("ijk,ijk->ij", vector_distances, vector_distances).argmin(axis=0))
+            tiles_indices.append(
+                np.einsum("ijk,ijk->ij", vector_distances, vector_distances).argmin(
+                    axis=0
+                )
+            )
 
         # Convert into an array.
         self.tiles = np.array(tiles_indices)
@@ -71,15 +81,19 @@ class Routing:
 
         # Allow cutting into multiple segments.
         if segments > 1:
-            self.cuts = [c[-1] for c in np.array_split(np.arange(self.n_tiles), segments)[:-1]]
+            self.cuts = [
+                c[-1] for c in np.array_split(np.arange(self.n_tiles), segments)[:-1]
+            ]
         else:
             self.cuts = []
 
-        logger.debug(f"Create routing problem with {self.n_tiles} and "
-                     f"{self.n_vertices} unique vertices. The routing consists "
-                     f"of {segments} segments, with cuts made at the samples "
-                     f"{self.cuts}. The list that gives for each tile which "
-                     f"vertices it contains is:\n{self.tiles}")
+        logger.debug(
+            f"Create routing problem with {self.n_tiles} and "
+            f"{self.n_vertices} unique vertices. The routing consists "
+            f"of {segments} segments, with cuts made at the samples "
+            f"{self.cuts}. The list that gives for each tile which "
+            f"vertices it contains is:\n{self.tiles}"
+        )
 
     def random_sample(self):
         """Create a routing sample at random.
@@ -91,7 +105,12 @@ class Routing:
             randomized. The actual ouput is a NumPy array with shape
             (2, n_tiles) for ease of use in the rest of the code.
         """
-        return np.stack((np.random.permutation(self.n_tiles), np.random.choice(self.vertices_per_tile, size=self.n_tiles)))
+        return np.stack(
+            (
+                np.random.permutation(self.n_tiles),
+                np.random.choice(self.vertices_per_tile, size=self.n_tiles),
+            )
+        )
 
     def evaluate_cost(self, sample, repetition_penalty=100):
         """Calculate the cost of the given sample.
@@ -159,7 +178,9 @@ class Routing:
             A reference to the mutated sample. Note that the sample is mutated
             in-place: the return value is available just for convenience.
         """
-        sample[1, tile_index] = (sample[1, tile_index] + increment) % self.vertices_per_tile
+        sample[1, tile_index] = (
+            sample[1, tile_index] + increment
+        ) % self.vertices_per_tile
         return sample
 
     def mutate_order(self, sample, tile_index, distance):
@@ -197,10 +218,14 @@ class Routing:
             in-place: the return value is available just for convenience.
         """
         next_tile_index = (tile_index + distance) % self.n_tiles
-        sample[:, [tile_index, next_tile_index]] = sample[:, [next_tile_index, tile_index]]
+        sample[:, [tile_index, next_tile_index]] = sample[
+            :, [next_tile_index, tile_index]
+        ]
         return sample
 
-    def mutate_vertex_then_order(self, sample, tile_index, vertex_increment, tile_distance):
+    def mutate_vertex_then_order(
+        self, sample, tile_index, vertex_increment, tile_distance
+    ):
         """Combine mutate_vertex and mutate_order in a single call.
 
         This method selects one tile and changes the vertex that should be
@@ -261,9 +286,22 @@ class Routing:
         t = np.random.randint(self.n_tiles)
 
         # Generate several mutations.
-        mutations = [self.mutate_vertex(sample.copy(), t, i) for i in range(1, self.vertices_per_tile)] \
-                  + [self.mutate_order(sample.copy(), t, i) for i in range(1, max_distance)] \
-                  + [self.mutate_vertex_then_order(sample.copy(), t, np.random.randint(1, self.vertices_per_tile), np.random.randint(1, max_distance)) for _ in range(mixed_mutations)]
+        mutations = (
+            [
+                self.mutate_vertex(sample.copy(), t, i)
+                for i in range(1, self.vertices_per_tile)
+            ]
+            + [self.mutate_order(sample.copy(), t, i) for i in range(1, max_distance)]
+            + [
+                self.mutate_vertex_then_order(
+                    sample.copy(),
+                    t,
+                    np.random.randint(1, self.vertices_per_tile),
+                    np.random.randint(1, max_distance),
+                )
+                for _ in range(mixed_mutations)
+            ]
+        )
 
         # Evaluate the cost of each mutation and look for the best one.
         costs = [self.evaluate_cost(mutation) for mutation in mutations]
@@ -274,21 +312,32 @@ class Routing:
         if costs[idx] < cost:
             # If the mutation is an improvement, keep it and keep trying to get
             # better solutions.
-            return self.improve(mutations[idx], costs[idx], attempts, max_distance, mixed_mutations)
+            return self.improve(
+                mutations[idx], costs[idx], attempts, max_distance, mixed_mutations
+            )
         elif attempts > 0:
             # If the mutation is not an improvement, reject it. Reduce the
             # number of possible attempts by one and restart all over.
-            return self.improve(sample, cost, attempts-1, max_distance, mixed_mutations)
+            return self.improve(
+                sample, cost, attempts - 1, max_distance, mixed_mutations
+            )
         else:
             # If the mutation is not an improvement and there are no further
             # attempts remaining, return the current sample and its cost.
             return sample, cost
 
-    def optimize(self, best_sample=None, max_iterations=100,
-                 attemps_per_improvement=100, random_start_probability=0.9,
-                 max_swap_distance=10, mixed_mutations=10,
-                 progressbar_length=30, progressbar_char="#",
-                 percentage_precision=0):
+    def optimize(
+        self,
+        best_sample=None,
+        max_iterations=100,
+        attemps_per_improvement=100,
+        random_start_probability=0.9,
+        max_swap_distance=10,
+        mixed_mutations=10,
+        progressbar_length=30,
+        progressbar_char="#",
+        percentage_precision=0,
+    ):
         """Look for an optimal routing.
 
         The algorithm is a quite simple iterative procedure. At each iteration,
@@ -331,11 +380,12 @@ class Routing:
 
         # Get the cost of the available routing.
         best_cost = self.evaluate_cost(best_sample)
-        logger.debug(f"Initial candidate cost: {best_cost}. "
-                     f"Candidate:\n{best_sample.tolist()}")
+        logger.debug(
+            f"Initial candidate cost: {best_cost}. Candidate:\n{best_sample.tolist()}"
+        )
 
         # Make sure that the swap distance makes sense.
-        max_swap_distance = max(1, min(self.n_tiles-1, max_swap_distance))
+        max_swap_distance = max(1, min(self.n_tiles - 1, max_swap_distance))
         logger.debug(f"Using {max_swap_distance=}.")
 
         # Try to refine the solution. Allow the user to interrupt the search via
@@ -346,38 +396,61 @@ class Routing:
             for iter in range(max_iterations):
                 # Show progress information, so that the user can estimate the
                 # time to completion.
-                progress = np.round(progressbar_length * (iter+1) / max_iterations).astype(int)
-                progress_percentage = np.round(100 * (iter+1) / max_iterations, percentage_precision)
+                progress = np.round(
+                    progressbar_length * (iter + 1) / max_iterations
+                ).astype(int)
+                progress_percentage = np.round(
+                    100 * (iter + 1) / max_iterations, percentage_precision
+                )
                 if percentage_precision > 0:
-                    progress_percentage = np.format_float_positional(progress_percentage, unique=False, precision=percentage_precision)
+                    progress_percentage = np.format_float_positional(
+                        progress_percentage,
+                        unique=False,
+                        precision=percentage_precision,
+                    )
                 else:
                     progress_percentage = progress_percentage.astype(int)
-                print(f"\r[{progressbar_char*progress}{' '*(progressbar_length-progress)}] {progress_percentage}%", end="", flush=True)
+                print(
+                    f"\r[{progressbar_char*progress}{' '*(progressbar_length-progress)}]"
+                    f" {progress_percentage}%",
+                    end="",
+                    flush=True,
+                )
 
                 # Select a sample and try to improve it. The samples will
                 # usually be a random guess, but it could sometimes be the
                 # current optimal solution.
                 pick_best = random_start_probability < np.random.uniform()
                 sample = best_sample.copy() if pick_best else self.random_sample()
-                sample, cost = self.improve(sample, self.evaluate_cost(sample),
-                                            attemps_per_improvement,
-                                            max_swap_distance, mixed_mutations)
-                logger.debug(f"Routing iteration {iter}. Started from "
-                             f"{'best' if pick_best else 'random'} sample. "
-                             f"Generated new sample with cost {cost}.")
+                sample, cost = self.improve(
+                    sample,
+                    self.evaluate_cost(sample),
+                    attemps_per_improvement,
+                    max_swap_distance,
+                    mixed_mutations,
+                )
+                logger.debug(
+                    f"Routing iteration {iter}. Started from "
+                    f"{'best' if pick_best else 'random'} sample. "
+                    f"Generated new sample with cost {cost}."
+                )
 
                 # Keep track of the running best.
                 if cost < best_cost:
                     best_sample = sample.copy()
                     best_cost = cost
-                    logger.debug(f"Found better candidate! Cost: {best_cost}. "
-                                 f"Candidate:\n{best_sample.tolist()}")
+                    logger.debug(
+                        f"Found better candidate! Cost: {best_cost}. "
+                        f"Candidate:\n{best_sample.tolist()}"
+                    )
         except KeyboardInterrupt:
             logger.debug("Routing interrupted by user.")
         # Print a new line since print calls in the loop remain on the same one.
         print()
-        logger.debug(f"Routing completed. Best cost: {best_cost}. "
-                     f"Candidate:\n{best_sample.tolist()}")
+        logger.debug(
+            f"Routing completed. Best cost: {best_cost}. "
+            f"Candidate:\n{best_sample.tolist()}"
+        )
 
         # Return the best routing found so far.
         return best_sample
@@ -387,7 +460,9 @@ class Routing:
         current_segment = np.empty((0, 2))
 
         for i in range(self.n_tiles):
-            points = tiles[sample[0,i]].sample_perimeter(vertices_per_tile, sample[1,i], border=-1)
+            points = tiles[sample[0, i]].sample_perimeter(
+                vertices_per_tile, sample[1, i], border=-1
+            )
             current_segment = np.vstack((current_segment, points))
             if i in self.cuts:
                 segments.append(current_segment)
@@ -397,36 +472,58 @@ class Routing:
         return segments
 
     def plot_routing(self, sample, tiles, ax, alpha=0.2):
-        """Plot a routing sequence in a figure.
-        """
+        """Plot a routing sequence in a figure."""
         vertex_sequence = self.vertices[self.tiles[sample[0], sample[1]]]
 
         for i in range(self.n_tiles):
-            tile = tiles[sample[0,i]]
-            p = (1-alpha) * vertex_sequence[i] + alpha * np.array([tile.x, tile.y])
+            tile = tiles[sample[0, i]]
+            p = (1 - alpha) * vertex_sequence[i] + alpha * np.array([tile.x, tile.y])
             ax.plot(*p, "o", color="black")
-            if i > 0 and i-1 not in self.cuts:
+            if i > 0 and i - 1 not in self.cuts:
                 d = p - prev_p
-                ax.arrow(*prev_p, *d, color="black", linewidth=0.5, head_width=0.01, length_includes_head=True)
+                ax.arrow(
+                    *prev_p,
+                    *d,
+                    color="black",
+                    linewidth=0.5,
+                    head_width=0.01,
+                    length_includes_head=True,
+                )
             prev_p = p
 
         for i, tile in enumerate(tiles):
             ax.text(tile.x, tile.y, str(i), color="red", horizontalalignment="center")
 
     def plot_detailed_routing(self, sample, tiles, vertices_per_tile, ax):
-        """Plot a routing sequence in a figure.
-        """
+        """Plot a routing sequence in a figure."""
         segments = self.get_detailed_routing_points(sample, tiles, vertices_per_tile)
         all_routing_points = np.vstack(segments)
 
         for segment in segments:
-            ax.plot(segment[:, 0], segment[:, 1], linewidth=1, marker="o", markevery=[0])
+            ax.plot(
+                segment[:, 0], segment[:, 1], linewidth=1, marker="o", markevery=[0]
+            )
 
         for i, p in enumerate(all_routing_points):
-            ax.text(*p, str(i), color="black", horizontalalignment="center", verticalalignment="center", fontsize=4, fontweight="bold")
+            ax.text(
+                *p,
+                str(i),
+                color="black",
+                horizontalalignment="center",
+                verticalalignment="center",
+                fontsize=4,
+                fontweight="bold",
+            )
 
         for i, tile in enumerate(tiles):
-            ax.text(tile.x, tile.y, str(i), color="black", horizontalalignment="center", verticalalignment="center")
+            ax.text(
+                tile.x,
+                tile.y,
+                str(i),
+                color="black",
+                horizontalalignment="center",
+                verticalalignment="center",
+            )
 
 
 def tree_search(choices, target, sequence=None, current_value=0, current_cost=0):
@@ -478,8 +575,10 @@ def tree_search(choices, target, sequence=None, current_value=0, current_cost=0)
 
     # Print debug output using a smart indentation to allow easier debugging.
     msg_indent = "  " * len(sequence)
-    logger.debug(f"{msg_indent}Depth: {len(sequence)}. Value: "
-                 f"{current_value}/{target}. Current cost: {current_cost}.")
+    logger.debug(
+        f"{msg_indent}Depth: {len(sequence)}. Value: "
+        f"{current_value}/{target}. Current cost: {current_cost}."
+    )
 
     for i, elem in enumerate(choices):
         logger.debug(f"{msg_indent}Exploring choice {i}.")
@@ -490,27 +589,42 @@ def tree_search(choices, target, sequence=None, current_value=0, current_cost=0)
         new_sequence = sequence + [elem]
 
         if new_cost > best_cost:
-            logger.debug(f"{msg_indent}Early pruning of choice {i} due to "
-                         f"excessive partial cost {new_cost}.")
+            logger.debug(
+                f"{msg_indent}Early pruning of choice {i} due to "
+                f"excessive partial cost {new_cost}."
+            )
             continue
 
         # If we did not reach a terminal state, get it using recursion.
         if new_value < target:
-            new_sequence, new_cost, new_value = \
-                tree_search(choices[i:], target, sequence=new_sequence,
-                            current_value=new_value, current_cost=new_cost)
-        logger.debug(f"{msg_indent}Choice {i}: value={new_value}/{target}, "
-                     f"cost={new_cost}.")
+            new_sequence, new_cost, new_value = tree_search(
+                choices[i:],
+                target,
+                sequence=new_sequence,
+                current_value=new_value,
+                current_cost=new_cost,
+            )
+        logger.debug(
+            f"{msg_indent}Choice {i}: value={new_value}/{target}, cost={new_cost}."
+        )
 
         # Check the current solution. If it is the best found so far, store it.
-        if new_cost < best_cost or (new_cost == best_cost and (new_value > best_value or (new_value == best_value and len(new_sequence) < len(best_sequence)))):
+        if new_cost < best_cost or (
+            new_cost == best_cost
+            and (
+                new_value > best_value
+                or (new_value == best_value and len(new_sequence) < len(best_sequence))
+            )
+        ):
             best_cost = new_cost
             best_value = new_value
             best_sequence = new_sequence
             logger.debug(f"{msg_indent}Choice {i} is now the best candidate.")
 
-    logger.debug(f"{msg_indent}Search completed. Value: {best_value}/{target}. "
-                 f"Cost: {best_cost}.")
+    logger.debug(
+        f"{msg_indent}Search completed. Value: {best_value}/{target}. "
+        f"Cost: {best_cost}."
+    )
 
     # Return the optimal result, with its cost and value as well.
     return best_sequence, best_cost, best_value
@@ -548,8 +662,7 @@ def named_tree_search(named_choices, target):
     # Prepare a list of unique items and their frequency.
     unique_elements = [best_sequence[0]]
     frequency = [1]
-    logger.debug(f"Initializing frequency of element "
-                 f"'{unique_elements[0].name}' to 1.")
+    logger.debug(f"Initializing frequency of element '{unique_elements[0].name}' to 1.")
 
     # Scan all items in the solution (except the first one, which has been
     # processed already).
@@ -558,12 +671,15 @@ def named_tree_search(named_choices, target):
         # frequency. Otherwise, add it and set its frequency to one.
         if elem.name == unique_elements[-1].name:
             frequency[-1] += 1
-            logger.debug(f"Increasing frequency of '{elem.name}' to "
-                         f"'{frequency[-1]}'.")
+            logger.debug(f"Increasing frequency of '{elem.name}' to '{frequency[-1]}'.")
         else:
             unique_elements.append(elem)
             frequency.append(1)
             logger.debug(f"Added new element '{elem.name}'.")
 
     # Return the solution as a list of (item, amount) tuples.
-    return [(elem, freq) for elem, freq in zip(unique_elements, frequency)], best_cost, best_value
+    return (
+        [(elem, freq) for elem, freq in zip(unique_elements, frequency)],
+        best_cost,
+        best_value,
+    )

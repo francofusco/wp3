@@ -1,11 +1,29 @@
 from .hexagon import Hexagon
-from .mpl import add_tiles_to_axes, tight_figure, toggle_tile_if_clicked, toggle_all_tiles, wait_for_exit
+from .mpl import (
+    add_tiles_to_axes,
+    tight_figure,
+    toggle_tile_if_clicked,
+    toggle_all_tiles,
+    wait_for_exit,
+)
 from .octagon import Octagon
 from .optimization import Routing, named_tree_search
 from .rectangle import Rectangle
-from .settings import load_materials, open_project, SettingsDict, update_cached_routing, update_initial_tiling
+from .settings import (
+    load_materials,
+    open_project,
+    SettingsDict,
+    update_cached_routing,
+    update_initial_tiling,
+)
 from .struct import Struct
-from .tile import Tile, unique_vertices, get_bounding_box, get_bounding_box_size, get_bounding_box_area
+from .tile import (
+    Tile,
+    unique_vertices,
+    get_bounding_box,
+    get_bounding_box_size,
+    get_bounding_box_area,
+)
 from .triangle import Triangle
 import numpy as np
 
@@ -25,9 +43,13 @@ class BillItem(object):
             print("| Name | Quantity | Price | Category | Notes |", file=f)
             print("| --- | --- | --- | --- | --- |", file=f)
             total_cost = 0
-            for item in sorted(items, key = lambda it: it.category):
+            for item in sorted(items, key=lambda it: it.category):
                 total_cost += item.quantity * item.cost
-                print(f"| {item.name} | {item.quantity} | {np.round(item.cost, 2)} | {item.category} | {item.notes} |", file=f)
+                print(
+                    f"| {item.name} | {item.quantity} | {np.round(item.cost, 2)} |"
+                    f" {item.category} | {item.notes} |",
+                    file=f,
+                )
             print(f"| Total |  | {np.round(total_cost, 2)} |  |  |", file=f)
 
     def __init__(self, name=None, quantity=1, cost=0, category="", notes=""):

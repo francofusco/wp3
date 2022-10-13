@@ -2,7 +2,19 @@ from collections import UserDict
 from copy import deepcopy
 import logging
 import pathlib
-from PyQt5.QtWidgets import QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 import sys
 import urllib.request
 import ruamel.yaml
@@ -48,14 +60,18 @@ def open_project():
     # there. Otherwise, just use the current location as base path.
     projects_dir = pathlib.Path("projects")
     if not projects_dir.is_dir():
-        logger.debug("Directory 'projects' not found: setting projects root as "
-                     "current directory.")
+        logger.debug(
+            "Directory 'projects' not found: setting projects root as "
+            "current directory."
+        )
         projects_dir = pathlib.Path(".")
 
     # Create a message box that asks the user to create or load a project.
     new_or_load_message_box = QMessageBox()
     new_or_load_message_box.setWindowTitle("WP3 Designer")
-    new_or_load_message_box.setText("Do you want to create a new project or load an existing one?")
+    new_or_load_message_box.setText(
+        "Do you want to create a new project or load an existing one?"
+    )
     new_or_load_message_box.setIcon(QMessageBox.Question)
     new_btn = new_or_load_message_box.addButton("New", QMessageBox.YesRole)
     load_btn = new_or_load_message_box.addButton("Load", QMessageBox.NoRole)
@@ -112,20 +128,28 @@ def open_project():
                     QMessageBox.critical(None, "Error", "Project name exists as a file")
                     return
                 elif any(dir.iterdir()):
-                    QMessageBox.critical(None, "Error", "Project directory is not empty")
+                    QMessageBox.critical(
+                        None, "Error", "Project directory is not empty"
+                    )
                     return
             dialog.accept()
 
         # Connect signals and slots to validate or cancel project creation.
-        buttonBox.accepted.connect(lambda: accept_if_directory_is_empty(project_name.text(), new_project_dialog))
+        buttonBox.accepted.connect(
+            lambda: accept_if_directory_is_empty(
+                project_name.text(), new_project_dialog
+            )
+        )
         buttonBox.rejected.connect(new_project_dialog.reject)
 
         # Add the form and the buttons to the main layout of the dialog.
         main_layout.addLayout(form)
         main_layout.addWidget(buttonBox)
 
-        logger.debug("Created form dialog to create new project from given "
-                     "settings. Waiting for user interaction.")
+        logger.debug(
+            "Created form dialog to create new project from given "
+            "settings. Waiting for user interaction."
+        )
 
         # If the user clicks on "Cancel", quit.
         if not new_project_dialog.exec():
@@ -158,9 +182,9 @@ def open_project():
         logger.debug("Loading project.")
 
         # Load an existing project.
-        file_name, _ = QFileDialog.getOpenFileName(None, "Open project",
-                                                   str(projects_dir),
-                                                   "YAML (*.yaml *.yml)")
+        file_name, _ = QFileDialog.getOpenFileName(
+            None, "Open project", str(projects_dir), "YAML (*.yaml *.yml)"
+        )
         logger.debug(f"User selected file '{file_name}'.")
 
         # If no selection was made, quit.
@@ -173,8 +197,7 @@ def open_project():
         logger.debug(f"Project directory: '{project_dir}'.")
         return project_dir, SettingsDict.from_yaml(file_name)
     else:
-        logger.debug("The user did not click on neither 'New' nor 'Load'. "
-                     "Quitting.")
+        logger.debug("The user did not click on neither 'New' nor 'Load'. Quitting.")
         # The user clicked on "Cancel" or closed the window: quit.
         sys.exit()
 
@@ -233,7 +256,9 @@ def load_materials(settings):
     """
     # Try to initialize the list of materials from an online file.
     try:
-        materials_url = "https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml"
+        materials_url = (
+            "https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml"
+        )
         logger.debug(f"Sending HTTP request to retrieve '{materials_url}'.")
         hosted_materials_file, _ = urllib.request.urlretrieve(materials_url)
         with open(hosted_materials_file, "r") as f:
@@ -290,7 +315,9 @@ def load_materials(settings):
         # they are read as arrays of strings. This also allows to use inf as a
         # value for panels whose cost is dependent on the size.
         logger.debug(f"Casting 'size' to floats for material '{k}'.")
-        materials["sheets"][k]["size"] = list(map(float, materials["sheets"][k]["size"]))
+        materials["sheets"][k]["size"] = list(
+            map(float, materials["sheets"][k]["size"])
+        )
 
         # Make sure that the cost of the sheet is positive, or at least
         # non-negative.
@@ -314,9 +341,11 @@ def load_materials(settings):
             raise RuntimeError(f"Cost of leds '{k}' is negative.")
 
     # Return the list of materials, as a SettingsDict instance.
-    logger.debug(f"List of materials loaded. There are "
-                  f"{len(materials['sheets'])} sheets and "
-                  f"{len(materials['leds'])} leds.")
+    logger.debug(
+        "List of materials loaded. There are "
+        f"{len(materials['sheets'])} sheets and "
+        f"{len(materials['leds'])} leds."
+    )
     return SettingsDict(materials)
 
 
@@ -391,7 +420,9 @@ class SettingsDict(UserDict):
         UserDict.
         """
         if self.read_only:
-            raise RuntimeError(f"The settings dictionary is read-only, cannot set key '{key}'.")
+            raise RuntimeError(
+                f"The settings dictionary is read-only, cannot set key '{key}'."
+            )
         else:
             super().__setitem__(key, value)
 
@@ -406,7 +437,10 @@ class SettingsDict(UserDict):
         # and the execution is stoppped via sys.exit(). If use_exceptions is
         # True, an KeyError with the same error message is raised instead.
         if key not in self:
-            msg = f"The required key '{key}' could not be found in the namespace '{self.ns or '/'}'. Please, check your YAML configuration file."
+            msg = (
+                f"The required key '{key}' could not be found in the namespace"
+                f" '{self.ns or '/'}'. Please, check your YAML configuration file."
+            )
             if self.use_exceptions:
                 raise KeyError(msg)
             else:
@@ -447,7 +481,6 @@ class SettingsDict(UserDict):
             The value for key if key is in the dictionary, else default.
         """
         return self[key] if key in self else default
-
 
     def extract(self, key, default=None):
         """Get a deep-copy of the value associated to the given key.

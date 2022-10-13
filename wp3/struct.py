@@ -4,6 +4,7 @@ class Struct(object):
     This class works like a C-structure, with the advantage that fields are
     created dynamically upon construction.
     """
+
     def __init__(self, **kwargs):
         """Create a new structure with the given fields.
 

@@ -22,7 +22,9 @@ class Tile(object):
         return [0]
 
     @classmethod
-    def fit_in_sheet(cls, num_tiles, spacing, side_length, variant, sheet_width, sheet_height):
+    def fit_in_sheet(
+        cls, num_tiles, spacing, side_length, variant, sheet_width, sheet_height
+    ):
         """Fit as many tiles as possible inside a rectangular domain.
 
         This function tries to fit a certain number of tiles (at most) in a
@@ -114,7 +116,10 @@ class Tile(object):
                 value can be used to select one such variant.
         """
         if variant not in self.get_variants():
-            raise ValueError(f"Invalid variant {variant} for type {type(self).__name__}. Allwed values: {', '.join(map(str, self.get_variants()))}")
+            raise ValueError(
+                f"Invalid variant {variant} for type {type(self).__name__}. Allwed"
+                f" values: {', '.join(map(str, self.get_variants()))}"
+            )
 
         # Store parameters.
         self.row = row
@@ -136,8 +141,9 @@ class Tile(object):
         Returns:
             x, y: Cartesian coordinates of the center of the tile.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplemented(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def create_patches(self):
         """Create patches to be added to a matplotlib figure.
@@ -149,8 +155,9 @@ class Tile(object):
                 border of a tile. This will be placed under its corresponding
                 patch and therefore it does not need to have holes.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplemented(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def make_copy(self):
         """Create a copy of this Tile by calling its constructor.
@@ -162,8 +169,9 @@ class Tile(object):
             tile: a copy of self, created by calling the constructor. This does
                 not copy the visibility or the color of the tile.
         """
-        return type(self)(self.row, self.col, self.spacing, self.side_length,
-                          self.variant)
+        return type(self)(
+            self.row, self.col, self.spacing, self.side_length, self.variant
+        )
 
     def center(self):
         """Center coordinates, as a NumPy array."""
@@ -182,8 +190,9 @@ class Tile(object):
         Returns:
             verts: a NumPy array with shape (n_vertices, 2).
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplemented(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def perimeter(self, border=0):
         """Calculate the perimeter of the tile.
@@ -215,7 +224,7 @@ class Tile(object):
         t += t[1] / 2
         x = np.interp(t, t_verts, verts[:, 0])
         y = np.interp(t, t_verts, verts[:, 1])
-        return np.stack((x,y)).T
+        return np.stack((x, y)).T
 
     def within(self, x_range, y_range, include_border=True, tolerance=0.0):
         """Tells if this tile fits the given rectangular domain.
@@ -237,10 +246,12 @@ class Tile(object):
         verts = self.vertices(border=1.0 if include_border else 0.0)
 
         # Check if all vertices are within the bounds.
-        return np.all(x_range[0] - tolerance <= verts[:,0]) and \
-               np.all(verts[:,0] <= x_range[1] + tolerance) and \
-               np.all(y_range[0] - tolerance <= verts[:,1]) and \
-               np.all(verts[:,1] <= y_range[1] + tolerance)
+        return (
+            np.all(x_range[0] - tolerance <= verts[:, 0])
+            and np.all(verts[:, 0] <= x_range[1] + tolerance)
+            and np.all(y_range[0] - tolerance <= verts[:, 1])
+            and np.all(verts[:, 1] <= y_range[1] + tolerance)
+        )
 
     def contains(self, x, y):
         """Check if a point lies within this tile.
@@ -251,8 +262,9 @@ class Tile(object):
             contained: True if the point is within the tile. The border is not
                 considered for this check.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplemented(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def adjacent(self, other):
         """Check if this tile is adjacent to another.
@@ -266,8 +278,9 @@ class Tile(object):
         Returns:
             True if the tiles are adjacent, False otherwise.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplemented(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def add_to_axis(self, ax):
         """Add the tile and its border to a plot.
@@ -321,7 +334,9 @@ def unique_vertices(tiles):
     for tile in tiles[1:]:
         for v in tile.vertices(border=0.5):
             vector_distances = vertices - v
-            if not np.isclose(np.einsum("ij,ij->i", vector_distances, vector_distances).min(), 0):
+            if not np.isclose(
+                np.einsum("ij,ij->i", vector_distances, vector_distances).min(), 0
+            ):
                 vertices = np.vstack((vertices, v))
     return vertices
 
