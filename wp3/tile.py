@@ -8,6 +8,15 @@ class Tile(object):
     etc. Subclasses implement the logic related to the geometry they use.
     """
 
+    # This dictionary is populated with pairs (class name, calss type), to let
+    # one easily create tile types from strings.
+    types = {}
+
+    def __init_subclass__(cls, **kwargs):
+        """Register a subclass type into the static `types` variable."""
+        super().__init_subclass__(**kwargs)
+        cls.types[cls.__name__] = cls
+
     @classmethod
     def get_variants(cls):
         """Valid variants for a tile type.

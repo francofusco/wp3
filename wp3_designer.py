@@ -29,34 +29,25 @@ def main():
 
     # Load type and variant of the tile.
     tile_type_specs = settings["panels"]["type"].split("#") + [0]
+    TileClass = wp3.Tile.types.get(tile_type_specs[0])
+    tile_variant = int(tile_type_specs[1])
 
     # Check if the type is a valid symbol in wp3.
-    if not hasattr(wp3, tile_type_specs[0]):
-        print(
-            f"The panels type '{tile_type_specs[0]}' does not exist. Please,"
+    if TileClass is None:
+        raise RuntimeError(
+            f"The panels type '{tile_type_specs[0]}' does not exist. Valid"
+            f" types are: {', '.join(sorted(wp3.Tile.types.keys()))}. Please,"
             " check your YAML configuration file."
         )
-        return
 
-    # Get the type and check if it is a Tile subclass.
-    TileClass = getattr(wp3, tile_type_specs[0])
-    if not isinstance(TileClass, type) or not issubclass(TileClass, wp3.Tile):
-        print(
-            f"The panels type '{tile_type_specs[0]}' is not a Tile subclass."
-            " Please, check your YAML configuration file."
-        )
-        return
-
-    # Get the variant of the panels and check that it is valid.
-    tile_variant = int(tile_type_specs[1])
+    # Check if the variant of the panels is valid.
     if tile_variant not in TileClass.get_variants():
-        print(
+        raise RuntimeError(
             f"The panels variant '{tile_variant}' is invalid; valid variants"
             f" for '{tile_type_specs[0]}' are:"
             f" {', '.join(map(str, TileClass.get_variants()))}. Please, check"
             " your YAML configuration file."
         )
-        return
 
     # Load a design from the settings, if this is available.
     initial_tiling = settings["panels"].get("initial_tiling")
@@ -160,12 +151,11 @@ def main():
     if settings.has("routing", "segments") and settings.has(
         "routing", "tiles_per_segment"
     ):
-        print(
+        raise RuntimeError(
             "Sorry, but the parameters 'routing/segments' and "
             "'routing/tiles_per_segment' should not be given at the same "
             "time. Please, update 'config.yaml' and re-launch the designer."
         )
-        return
     if settings.has("routing", "segments"):
         segments = settings["routing"]["segments"]
         logger.debug(f"Found parameter 'routing/segments'; value: {segments}.")
@@ -477,11 +467,10 @@ def main():
 
             # Make sure that the list of sheets is not empty.
             if len(materials) == 0:
-                print(
+                raise RuntimeError(
                     f"Error in assembly list 'sheets/{i}': no materials"
                     " specified."
                 )
-                return
 
             # Get the list of sheets that have to be purchased, and their
             # quantity.
@@ -547,11 +536,10 @@ def main():
 
             # Make sure that the list of strips is not empty.
             if len(materials) == 0:
-                print(
+                raise RuntimeError(
                     f"Error in assembly list 'leds/{i}': no materials"
                     " specified."
                 )
-                return
 
             # Check if all strips in this assembly have the same LED density.
             led_density = materials_list["leds"][materials[0]]["leds_per_meter"]
@@ -562,12 +550,11 @@ def main():
                 m_density = materials_list["leds"][m]["leds_per_meter"]
                 logger.debug(f"Checking LEDs densities. {m}: {m_density}.")
                 if m_density != led_density:
-                    print(
+                    raise RuntimeError(
                         f"Error in assembly list 'leds/{i}'. The components "
                         f"'{materials[0]}' and '{m}' have a different amount "
                         "of LEDs per meter."
                     )
-                    return
 
             # Evaluate how many LEDs should be inserted in a single strip and
             # how many meters would be needed to have all tiles filled with
