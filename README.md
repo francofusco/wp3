@@ -1,3 +1,7 @@
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Formatting](https://github.com/francofusco/wp3/actions/workflows/formatting.yml/badge.svg)](https://github.com/francofusco/wp3/actions/workflows/formatting.yml)
+
+
 **TABLE OF CONTENTS**
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
