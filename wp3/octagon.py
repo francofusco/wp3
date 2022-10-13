@@ -13,10 +13,20 @@ class Octagon(Tile):
             # Center coordinates can be calculated from those of the sourrounding
             # rectangle.
             tile_size = (1 + np.sqrt(2)) * self.side_length
-            x = (tile_size + self.spacing) * self.col + self.spacing + tile_size / 2
-            y = (tile_size + self.spacing) * self.row + self.spacing + tile_size / 2
+            x = (
+                (tile_size + self.spacing) * self.col
+                + self.spacing
+                + tile_size / 2
+            )
+            y = (
+                (tile_size + self.spacing) * self.row
+                + self.spacing
+                + tile_size / 2
+            )
         else:
-            dist = ((1 + np.sqrt(2)) * self.side_length + self.spacing) / np.sqrt(2)
+            dist = (
+                (1 + np.sqrt(2)) * self.side_length + self.spacing
+            ) / np.sqrt(2)
             x = self.col * dist
             y = self.row * 2 * dist
             if self.col % 2 == 0:
@@ -29,8 +39,12 @@ class Octagon(Tile):
         # Return two octagons with different sizes.
         r = self.side_length * np.sqrt(1 + 1 / np.sqrt(2))
         R = r * (1 + 2 * self.spacing / ((1 + np.sqrt(2)) * self.side_length))
-        inner = RegularPolygon((self.x, self.y), 8, radius=r, orientation=np.pi / 8)
-        outer = RegularPolygon((self.x, self.y), 8, radius=R, orientation=np.pi / 8)
+        inner = RegularPolygon(
+            (self.x, self.y), 8, radius=r, orientation=np.pi / 8
+        )
+        outer = RegularPolygon(
+            (self.x, self.y), 8, radius=R, orientation=np.pi / 8
+        )
         return inner, outer
 
     def vertices(self, border=1.0):
@@ -62,9 +76,13 @@ class Octagon(Tile):
 
     def adjacent(self, other):
         if self.variant == 0:
-            return np.abs(self.row - other.row) + np.abs(self.col - other.col) == 1
+            return (
+                np.abs(self.row - other.row) + np.abs(self.col - other.col) == 1
+            )
         else:
-            distance = np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+            distance = np.sqrt(
+                (self.x - other.x) ** 2 + (self.y - other.y) ** 2
+            )
             return np.allclose(
                 distance, (1 + np.sqrt(2)) * self.side_length + self.spacing
             )

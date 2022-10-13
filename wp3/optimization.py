@@ -67,9 +67,9 @@ class Routing:
             # taking argmin along the first axis, we are left with six values:
             # they represent the indices of each vertex of the tile.
             tiles_indices.append(
-                np.einsum("ijk,ijk->ij", vector_distances, vector_distances).argmin(
-                    axis=0
-                )
+                np.einsum(
+                    "ijk,ijk->ij", vector_distances, vector_distances
+                ).argmin(axis=0)
             )
 
         # Convert into an array.
@@ -82,7 +82,8 @@ class Routing:
         # Allow cutting into multiple segments.
         if segments > 1:
             self.cuts = [
-                c[-1] for c in np.array_split(np.arange(self.n_tiles), segments)[:-1]
+                c[-1]
+                for c in np.array_split(np.arange(self.n_tiles), segments)[:-1]
             ]
         else:
             self.cuts = []
@@ -291,7 +292,10 @@ class Routing:
                 self.mutate_vertex(sample.copy(), t, i)
                 for i in range(1, self.vertices_per_tile)
             ]
-            + [self.mutate_order(sample.copy(), t, i) for i in range(1, max_distance)]
+            + [
+                self.mutate_order(sample.copy(), t, i)
+                for i in range(1, max_distance)
+            ]
             + [
                 self.mutate_vertex_then_order(
                     sample.copy(),
@@ -313,7 +317,11 @@ class Routing:
             # If the mutation is an improvement, keep it and keep trying to get
             # better solutions.
             return self.improve(
-                mutations[idx], costs[idx], attempts, max_distance, mixed_mutations
+                mutations[idx],
+                costs[idx],
+                attempts,
+                max_distance,
+                mixed_mutations,
             )
         elif attempts > 0:
             # If the mutation is not an improvement, reject it. Reduce the
@@ -381,7 +389,8 @@ class Routing:
         # Get the cost of the available routing.
         best_cost = self.evaluate_cost(best_sample)
         logger.debug(
-            f"Initial candidate cost: {best_cost}. Candidate:\n{best_sample.tolist()}"
+            f"Initial candidate cost: {best_cost}."
+            f" Candidate:\n{best_sample.tolist()}"
         )
 
         # Make sure that the swap distance makes sense.
@@ -421,7 +430,9 @@ class Routing:
                 # usually be a random guess, but it could sometimes be the
                 # current optimal solution.
                 pick_best = random_start_probability < np.random.uniform()
-                sample = best_sample.copy() if pick_best else self.random_sample()
+                sample = (
+                    best_sample.copy() if pick_best else self.random_sample()
+                )
                 sample, cost = self.improve(
                     sample,
                     self.evaluate_cost(sample),
@@ -477,7 +488,9 @@ class Routing:
 
         for i in range(self.n_tiles):
             tile = tiles[sample[0, i]]
-            p = (1 - alpha) * vertex_sequence[i] + alpha * np.array([tile.x, tile.y])
+            p = (1 - alpha) * vertex_sequence[i] + alpha * np.array(
+                [tile.x, tile.y]
+            )
             ax.plot(*p, "o", color="black")
             if i > 0 and i - 1 not in self.cuts:
                 d = p - prev_p
@@ -492,16 +505,28 @@ class Routing:
             prev_p = p
 
         for i, tile in enumerate(tiles):
-            ax.text(tile.x, tile.y, str(i), color="red", horizontalalignment="center")
+            ax.text(
+                tile.x,
+                tile.y,
+                str(i),
+                color="red",
+                horizontalalignment="center",
+            )
 
     def plot_detailed_routing(self, sample, tiles, vertices_per_tile, ax):
         """Plot a routing sequence in a figure."""
-        segments = self.get_detailed_routing_points(sample, tiles, vertices_per_tile)
+        segments = self.get_detailed_routing_points(
+            sample, tiles, vertices_per_tile
+        )
         all_routing_points = np.vstack(segments)
 
         for segment in segments:
             ax.plot(
-                segment[:, 0], segment[:, 1], linewidth=1, marker="o", markevery=[0]
+                segment[:, 0],
+                segment[:, 1],
+                linewidth=1,
+                marker="o",
+                markevery=[0],
             )
 
         for i, p in enumerate(all_routing_points):
@@ -526,7 +551,9 @@ class Routing:
             )
 
 
-def tree_search(choices, target, sequence=None, current_value=0, current_cost=0):
+def tree_search(
+    choices, target, sequence=None, current_value=0, current_cost=0
+):
     """Optimization algorithm to evaluate best combination of elements.
 
     Problem statement: a set of items are available, each with an associated
@@ -605,7 +632,8 @@ def tree_search(choices, target, sequence=None, current_value=0, current_cost=0)
                 current_cost=new_cost,
             )
         logger.debug(
-            f"{msg_indent}Choice {i}: value={new_value}/{target}, cost={new_cost}."
+            f"{msg_indent}Choice {i}: value={new_value}/{target},"
+            f" cost={new_cost}."
         )
 
         # Check the current solution. If it is the best found so far, store it.
@@ -613,7 +641,10 @@ def tree_search(choices, target, sequence=None, current_value=0, current_cost=0)
             new_cost == best_cost
             and (
                 new_value > best_value
-                or (new_value == best_value and len(new_sequence) < len(best_sequence))
+                or (
+                    new_value == best_value
+                    and len(new_sequence) < len(best_sequence)
+                )
             )
         ):
             best_cost = new_cost
@@ -662,7 +693,9 @@ def named_tree_search(named_choices, target):
     # Prepare a list of unique items and their frequency.
     unique_elements = [best_sequence[0]]
     frequency = [1]
-    logger.debug(f"Initializing frequency of element '{unique_elements[0].name}' to 1.")
+    logger.debug(
+        f"Initializing frequency of element '{unique_elements[0].name}' to 1."
+    )
 
     # Scan all items in the solution (except the first one, which has been
     # processed already).
@@ -671,7 +704,9 @@ def named_tree_search(named_choices, target):
         # frequency. Otherwise, add it and set its frequency to one.
         if elem.name == unique_elements[-1].name:
             frequency[-1] += 1
-            logger.debug(f"Increasing frequency of '{elem.name}' to '{frequency[-1]}'.")
+            logger.debug(
+                f"Increasing frequency of '{elem.name}' to '{frequency[-1]}'."
+            )
         else:
             unique_elements.append(elem)
             frequency.append(1)

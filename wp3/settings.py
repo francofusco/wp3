@@ -80,7 +80,9 @@ def open_project():
     # Wait for user's response, then take an action.
     logger.debug("Waiting for user to interact with message box.")
     new_or_load_message_box.exec()
-    logger.debug(f"User clicked on '{new_or_load_message_box.clickedButton()}'.")
+    logger.debug(
+        f"User clicked on '{new_or_load_message_box.clickedButton()}'."
+    )
     if new_or_load_message_box.clickedButton() == new_btn:
         logger.debug("Creating new project.")
 
@@ -111,7 +113,9 @@ def open_project():
         form.addRow("Canvas columns", columns)
 
         # Buttons to confirm or cancel project creation.
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
 
         # Auxiliary function that validates the project name. A project name is
         # valid if it points to a non-existing directory or to one that exists
@@ -125,7 +129,9 @@ def open_project():
             dir = projects_dir.joinpath(project_name)
             if dir.exists():
                 if dir.is_file():
-                    QMessageBox.critical(None, "Error", "Project name exists as a file")
+                    QMessageBox.critical(
+                        None, "Error", "Project name exists as a file"
+                    )
                     return
                 elif any(dir.iterdir()):
                     QMessageBox.critical(
@@ -197,14 +203,18 @@ def open_project():
         logger.debug(f"Project directory: '{project_dir}'.")
         return project_dir, SettingsDict.from_yaml(file_name)
     else:
-        logger.debug("The user did not click on neither 'New' nor 'Load'. Quitting.")
+        logger.debug(
+            "The user did not click on neither 'New' nor 'Load'. Quitting."
+        )
         # The user clicked on "Cancel" or closed the window: quit.
         sys.exit()
 
 
 def update_initial_tiling(project_dir, settings, initial_tiling):
     logger.debug("Saving tiling into 'config.yaml'.")
-    store_seq(project_dir, settings, initial_tiling, ["panels", "initial_tiling"])
+    store_seq(
+        project_dir, settings, initial_tiling, ["panels", "initial_tiling"]
+    )
 
 
 def update_cached_routing(project_dir, settings, routing):
@@ -256,9 +266,7 @@ def load_materials(settings):
     """
     # Try to initialize the list of materials from an online file.
     try:
-        materials_url = (
-            "https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml"
-        )
+        materials_url = "https://raw.githubusercontent.com/francofusco/wp3/main/materials.yaml"
         logger.debug(f"Sending HTTP request to retrieve '{materials_url}'.")
         hosted_materials_file, _ = urllib.request.urlretrieve(materials_url)
         with open(hosted_materials_file, "r") as f:
@@ -439,7 +447,8 @@ class SettingsDict(UserDict):
         if key not in self:
             msg = (
                 f"The required key '{key}' could not be found in the namespace"
-                f" '{self.ns or '/'}'. Please, check your YAML configuration file."
+                f" '{self.ns or '/'}'. Please, check your YAML configuration"
+                " file."
             )
             if self.use_exceptions:
                 raise KeyError(msg)

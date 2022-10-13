@@ -46,8 +46,9 @@ class BillItem(object):
             for item in sorted(items, key=lambda it: it.category):
                 total_cost += item.quantity * item.cost
                 print(
-                    f"| {item.name} | {item.quantity} | {np.round(item.cost, 2)} |"
-                    f" {item.category} | {item.notes} |",
+                    f"| {item.name} | {item.quantity} |"
+                    f" {np.round(item.cost, 2)} | {item.category} |"
+                    f" {item.notes} |",
                     file=f,
                 )
             print(f"| Total |  | {np.round(total_cost, 2)} |  |  |", file=f)
@@ -56,7 +57,9 @@ class BillItem(object):
         if name is None:
             raise ValueError("BillItem's name must be specified.")
         if "|" in name or "|" in category or "|" in notes:
-            raise ValueError("Commas cannot be specified in any of the filelds of .")
+            raise ValueError(
+                "Commas cannot be specified in any of the filelds of ."
+            )
         self.name = name
         self.quantity = quantity
         self.cost = cost

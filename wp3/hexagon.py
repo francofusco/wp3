@@ -17,7 +17,9 @@ class Hexagon(Tile):
         # The code below is designed for hexagons of variant 0. However, we
         # can swap the grid coordinates, do the calculations, and swap the
         # result in order to deal with the other variant as well.
-        row, col = (self.col, self.row) if self.variant else (self.row, self.col)
+        row, col = (
+            (self.col, self.row) if self.variant else (self.row, self.col)
+        )
 
         # Coordinates of the center, so that the pair (0,0) is mapped into the
         # origin of the catesian plane.
@@ -97,4 +99,6 @@ class Hexagon(Tile):
         # lazy check: just verify that the distance between their centers is the
         # one expected between two neighbours.
         distance = np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
-        return np.allclose(distance, np.sqrt(3) * self.side_length + self.spacing)
+        return np.allclose(
+            distance, np.sqrt(3) * self.side_length + self.spacing
+        )

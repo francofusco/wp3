@@ -73,7 +73,9 @@ class Tile(object):
             # Create a tile that should fit in the current grid coordinates.
             tile = cls(row, col, spacing, side_length, variant)
 
-            if tile.within((0, sheet_width), (0, sheet_height), tolerance=1e-10):
+            if tile.within(
+                (0, sheet_width), (0, sheet_height), tolerance=1e-10
+            ):
                 # If the tile does fit, "place it" and then go to the
                 # second-next column. We advance by two due to the vertical
                 # offsets that are present in odd columns when using some shapes
@@ -117,8 +119,8 @@ class Tile(object):
         """
         if variant not in self.get_variants():
             raise ValueError(
-                f"Invalid variant {variant} for type {type(self).__name__}. Allwed"
-                f" values: {', '.join(map(str, self.get_variants()))}"
+                f"Invalid variant {variant} for type {type(self).__name__}."
+                f" Allwed values: {', '.join(map(str, self.get_variants()))}"
             )
 
         # Store parameters.
@@ -219,7 +221,9 @@ class Tile(object):
         verts = np.roll(self.vertices(border=border), -first_corner, axis=0)
         verts = np.vstack((verts, [verts[0]]))
         d = np.diff(verts, axis=0)
-        t_verts = np.concatenate(([0], np.cumsum(np.sqrt(np.einsum("ij,ij->i", d, d)))))
+        t_verts = np.concatenate(
+            ([0], np.cumsum(np.sqrt(np.einsum("ij,ij->i", d, d))))
+        )
         t = np.linspace(0, self.perimeter(border=border), samples + 1)[:-1]
         t += t[1] / 2
         x = np.interp(t, t_verts, verts[:, 0])
@@ -335,7 +339,8 @@ def unique_vertices(tiles):
         for v in tile.vertices(border=0.5):
             vector_distances = vertices - v
             if not np.isclose(
-                np.einsum("ij,ij->i", vector_distances, vector_distances).min(), 0
+                np.einsum("ij,ij->i", vector_distances, vector_distances).min(),
+                0,
             ):
                 vertices = np.vstack((vertices, v))
     return vertices

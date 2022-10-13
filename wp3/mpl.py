@@ -39,7 +39,9 @@ def tight_figure(tiles):
     return fig, ax
 
 
-def add_tiles_to_axes(tiles, ax, copy=False, patch_color=None, border_color=None):
+def add_tiles_to_axes(
+    tiles, ax, copy=False, patch_color=None, border_color=None
+):
     """Add al tiles in the list to the given axes."""
     for tile in tiles:
         if copy:
@@ -108,7 +110,8 @@ def toggle_all_tiles(keyboard_event, tiles, axis):
     SHOW = "ctrl+a"
     if keyboard_event.key not in [TOGGLE, SHOW, HIDE]:
         logger.debug(
-            "The keyboard event was ignored (the key did not match any target action)."
+            "The keyboard event was ignored (the key did not match any target"
+            " action)."
         )
         return
 
@@ -121,7 +124,9 @@ def toggle_all_tiles(keyboard_event, tiles, axis):
         elif keyboard_event.key == HIDE:
             tile.set_visible(False)
         else:
-            logger.warning(f"Unrecognised (and unhandled) key '{keyboard_event.key}'")
+            logger.warning(
+                f"Unrecognised (and unhandled) key '{keyboard_event.key}'"
+            )
             break
 
     # Update the plot.
@@ -137,7 +142,9 @@ def wait_for_exit(figure):
     Args:
         figure: a (currently open) matplotlib.pyplot.Figure innstance.
     """
-    logger.debug("Creating exit_helper to wait until the target figure is closed.")
+    logger.debug(
+        "Creating exit_helper to wait until the target figure is closed."
+    )
 
     # Create a structure with the field 'keep_running' set to True, then add
     # a callback that changes it to False when the target figure is closed.
