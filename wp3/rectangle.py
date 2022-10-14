@@ -4,6 +4,18 @@ from .tile import Tile
 
 
 class Rectangle(Tile):
+    @classmethod
+    def configure(cls, side_length=None):
+        if side_length is None:
+            raise ValueError(
+                "The mandatory parameter 'side_length' was not specified."
+            )
+        cls.side_length = side_length
+
+    @classmethod
+    def configurable_parameters(cls):
+        return {"side_length": float}
+
     def calculate_center(self):
         # Calculate the coordinates. This is straightforward since squares stack
         # naturally inside a grid!

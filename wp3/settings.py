@@ -1,9 +1,11 @@
+from .tile import Tile
 from collections import UserDict
 from copy import deepcopy
 import logging
 import pathlib
 from PyQt5.QtWidgets import (
     QApplication,
+    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -101,10 +103,9 @@ def open_project():
         form = QFormLayout()
         project_name = QLineEdit()
         form.addRow("Project name", project_name)
-        tile_type = QLineEdit(settings["panels"]["type"])
+        tile_type = QComboBox()
+        tile_type.addItems(sorted(Tile._types.keys()))
         form.addRow("Tile type", tile_type)
-        side_length = QLineEdit(str(settings["panels"]["side_length"]))
-        form.addRow("Tiles side length", side_length)
         spacing = QLineEdit(str(settings["panels"]["spacing"]))
         form.addRow("Tiles spacing", spacing)
         rows = QLineEdit(str(settings["panels"]["rows"]))
@@ -162,21 +163,100 @@ def open_project():
             logger.debug("The user did not validate the form. Quitting.")
             sys.exit()
 
-        # Create the directory that will contain the project.
-        project_dir = projects_dir.joinpath(project_name.text())
-        project_dir.mkdir(parents=True, exist_ok=True)
-
-        logger.debug(f"Creating new project in '{project_dir}'.")
-
         # Change the default settings by using those provided in the form.
-        settings["panels"]["type"] = tile_type.text()
-        settings["panels"]["side_length"] = float(side_length.text())
+        tile_type = tile_type.currentText()
+        settings["panels"]["tiles"] = {"type": tile_type}
         settings["panels"]["spacing"] = float(spacing.text())
         settings["panels"]["rows"] = int(rows.text())
         settings["panels"]["columns"] = int(columns.text())
 
-        # Convert the dictionary into a SettingsDict
+        # Get a list of configurable parameters for the chosen tile class.
+        tile_parameters = Tile._types.get(tile_type).configurable_parameters()
+
+        # Create a dialog window that allows the user to set values for the
+        # configurable parameters of the chosen Tile class.
+        tile_params_dialog = QDialog()
+        main_layout = QVBoxLayout()
+        tile_params_dialog.setLayout(main_layout)
+        tile_params_dialog.setWindowTitle(f"{tile_type} parameters")
+
+        # Create a form to enter the desired parameters.
+        form = QFormLayout()
+
+        # Create a combo box to select the tile variant. The widget is not
+        # displayed if there is a single choice.
+        variant = QComboBox()
+        variant.addItems(map(str, Tile._types.get(tile_type).get_variants()))
+        if variant.count() > 1:
+            form.addRow("Variant", variant)
+
+        # Add one line edit per configurable parameter.
+        line_edits = {
+            param: QLineEdit(str(ptype()))
+            for param, ptype in tile_parameters.items()
+        }
+        for param, edit in line_edits.items():
+            form.addRow(f"{param} ({tile_parameters[param].__name__})", edit)
+
+        # Buttons to confirm or cancel parameters.
+        buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+
+        # Auxiliary function that validates the parameters. The requirement is
+        # that these parameters should be castable to their correct type.
+        def validate_parameters(widgets, param_types, dialog):
+            for param, widget in widgets.items():
+                ptype = param_types[param]
+                try:
+                    ptype(widget.text())
+                except ValueError:
+                    QMessageBox.critical(
+                        None,
+                        "Error",
+                        f"Invalid value '{widget.text()}' for parameter"
+                        f" '{param}' of type '{ptype.__name__}'",
+                    )
+                    return
+            dialog.accept()
+
+        # Connect signals and slots to validate or cancel parameter definitions.
+        buttonBox.accepted.connect(
+            lambda: validate_parameters(
+                line_edits, tile_parameters, tile_params_dialog
+            )
+        )
+        buttonBox.rejected.connect(tile_params_dialog.reject)
+
+        # Add the form and the buttons to the main layout of the dialog.
+        main_layout.addLayout(form)
+        main_layout.addWidget(buttonBox)
+
+        logger.debug("Created form dialog to pass tile-specific parameters.")
+
+        # If the user clicks on "Cancel", quit.
+        if not tile_params_dialog.exec():
+            logger.debug("The user did not validate the form. Quitting.")
+            sys.exit()
+
+        # Apply given settings.
+        logger.debug(f"Setting tile variant: {variant.currentText()}.")
+        settings["panels"]["tiles"]["variant"] = int(variant.currentText())
+        for param, ptype in tile_parameters.items():
+            param_value = line_edits[param].text()
+            logger.debug(
+                f"Setting tile parameter '{param}' of type '{ptype.__name__}'"
+                f" to '{param_value}'."
+            )
+            settings["panels"]["tiles"][param] = ptype(param_value)
+
+        # Convert the dictionary into a SettingsDict.
         settings = SettingsDict(settings)
+
+        # Create the directory that will contain the project.
+        project_dir = projects_dir.joinpath(project_name.text())
+        project_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Creating new project in '{project_dir}'.")
 
         # Save the new settings to re-load the project in the future.
         logger.debug("Creating the file 'config.yaml' for the project.")

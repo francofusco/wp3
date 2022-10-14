@@ -5,6 +5,18 @@ from .tile import Tile
 
 class Hexagon(Tile):
     @classmethod
+    def configure(cls, side_length=None):
+        if side_length is None:
+            raise ValueError(
+                "The mandatory parameter 'side_length' was not specified."
+            )
+        cls.side_length = side_length
+
+    @classmethod
+    def configurable_parameters(cls):
+        return {"side_length": float}
+
+    @classmethod
     def get_variants(cls):
         # There are two variants:
         # - Hexagons from variant 0 have horizontal edges on their top and

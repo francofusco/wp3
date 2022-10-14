@@ -27,28 +27,6 @@ def main():
     # Extract a list of materials.
     materials_list = wp3.load_materials(settings)
 
-    # Load type and variant of the tile.
-    tile_type_specs = settings["panels"]["type"].split("#") + [0]
-    TileClass = wp3.Tile.types.get(tile_type_specs[0])
-    tile_variant = int(tile_type_specs[1])
-
-    # Check if the type is a valid symbol in wp3.
-    if TileClass is None:
-        raise RuntimeError(
-            f"The panels type '{tile_type_specs[0]}' does not exist. Valid"
-            f" types are: {', '.join(sorted(wp3.Tile.types.keys()))}. Please,"
-            " check your YAML configuration file."
-        )
-
-    # Check if the variant of the panels is valid.
-    if tile_variant not in TileClass.get_variants():
-        raise RuntimeError(
-            f"The panels variant '{tile_variant}' is invalid; valid variants"
-            f" for '{tile_type_specs[0]}' are:"
-            f" {', '.join(map(str, TileClass.get_variants()))}. Please, check"
-            " your YAML configuration file."
-        )
-
     # Load a design from the settings, if this is available.
     initial_tiling = settings["panels"].get("initial_tiling")
     logger.info(
@@ -56,6 +34,9 @@ def main():
         if initial_tiling is not None
         else "No initial tiling found in loaded settings."
     )
+
+    # Load the requested Tile sub-class.
+    TileClass = wp3.Tile.load_tile_type(settings["panels"]["tiles"])
 
     # Fill the available design space with the chosen tiles.
     tiles = []
@@ -65,8 +46,7 @@ def main():
                 row,
                 col,
                 settings["panels"]["spacing"],
-                settings["panels"]["side_length"],
-                tile_variant,
+                settings["panels"]["tiles"].get("variant", 0),
             )
             tiles.append(tile)
             logger.debug(
@@ -323,10 +303,9 @@ def main():
     # dimensions as well.
     logger.debug("Adding walls info to the bill of materials.")
     walls_notes = (
-        f"Side Length: {np.round(1000*settings['panels']['side_length'], 2)}mm."
-        f" Spacing: {np.round(1000*settings['panels']['spacing'], 2)}mm."
-        f" Junction Angle: {np.round(180/walls_per_tile, 2)}deg. Remember to"
-        " update the CAD accordingly and export the STL meshes to print them."
+        f":warning: CAD values are to be updated according to the current tile"
+        f" parameters. This feature is being reworked and therefore I cannot"
+        f" provide the values/instructions right now..."
     )
     bill_of_materials.append(
         wp3.BillItem(
@@ -377,7 +356,6 @@ def main():
             tiling = TileClass.fit_in_sheet(
                 len(visible_tiles),
                 0,
-                settings["panels"]["side_length"],
                 variant,
                 width,
                 height,
