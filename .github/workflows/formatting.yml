@@ -1,0 +1,13 @@
+name: Formatting
+
+on: [push, pull_request]
+
+jobs:
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
+        with:
+            options: "--check --verbose --diff --color"
+      - run: python comment_checker.py . wp3

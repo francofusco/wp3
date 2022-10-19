@@ -5,6 +5,18 @@ from .tile import Tile
 
 class Triangle(Tile):
     @classmethod
+    def configure(cls, side_length=None):
+        if side_length is None:
+            raise ValueError(
+                "The mandatory parameter 'side_length' was not specified."
+            )
+        cls.side_length = side_length
+
+    @classmethod
+    def configurable_parameters(cls):
+        return {"side_length": float}
+
+    @classmethod
     def get_variants(cls):
         # There are two variants:
         # - Triangles from variant 0 have a horizontal edge either on the bottom
@@ -17,7 +29,9 @@ class Triangle(Tile):
         # The code below is designed for triangles of variant 0. However, we
         # can swap the grid coordinates, do the calculations, and swap the
         # result in order to deal with the other variant as well.
-        row, col = (self.col, self.row) if self.variant else (self.row, self.col)
+        row, col = (
+            (self.col, self.row) if self.variant else (self.row, self.col)
+        )
 
         # Coordinates of the center, so that the pair (0,0) is mapped into the
         # origin of the cartesian plane.
@@ -44,7 +58,13 @@ class Triangle(Tile):
         # the variant of the triangle but also on its grid coordinates (some
         # triangles are rotated by 180 degrees).
         offset = self.variant * np.pi / 6 + ((self.col + self.row) % 2) * np.pi
-        inner = RegularPolygon((self.x, self.y), 3, radius=self.side_length/np.sqrt(3), orientation=offset, linewidth=0)
+        inner = RegularPolygon(
+            (self.x, self.y),
+            3,
+            radius=self.side_length / np.sqrt(3),
+            orientation=offset,
+            linewidth=0,
+        )
 
         # To define the outer patch, we could just create a larger triangle.
         # However, there would be some "spikes" that while harmless are visually
@@ -62,16 +82,29 @@ class Triangle(Tile):
         # - Finally, create a Polygon from the sequence of these six points.
         x = self.side_length / np.sqrt(3) + 1.5 * self.spacing
         y = self.spacing * np.sqrt(3) / 6
-        alpha = - (1-self.variant) * np.pi / 6 + ((self.col + self.row) % 2) * np.pi
-        Ra = np.array([[np.cos(alpha), -np.sin(alpha)], [np.sin(alpha), np.cos(alpha)]])
+        alpha = (
+            -(1 - self.variant) * np.pi / 6
+            + ((self.col + self.row) % 2) * np.pi
+        )
+        Ra = np.array(
+            [[np.cos(alpha), -np.sin(alpha)], [np.sin(alpha), np.cos(alpha)]]
+        )
         v1 = Ra.dot(np.array([x, -y]))
-        v2 = Ra.dot(np.array([x,  y]))
-        R = np.array([[np.cos(2*np.pi/3), -np.sin(2*np.pi/3)], [np.sin(2*np.pi/3), np.cos(2*np.pi/3)]])
+        v2 = Ra.dot(np.array([x, y]))
+        R = np.array(
+            [
+                [np.cos(2 * np.pi / 3), -np.sin(2 * np.pi / 3)],
+                [np.sin(2 * np.pi / 3), np.cos(2 * np.pi / 3)],
+            ]
+        )
         v3 = R.dot(v1)
         v4 = R.dot(v2)
         v5 = R.T.dot(v1)
         v6 = R.T.dot(v2)
-        outer = Polygon(np.stack((v1, v2, v3, v4, v5, v6)) + np.array([self.x, self.y]), linewidth=0)
+        outer = Polygon(
+            np.stack((v1, v2, v3, v4, v5, v6)) + np.array([self.x, self.y]),
+            linewidth=0,
+        )
 
         # Return the inner and outer patches.
         return inner, outer
@@ -82,11 +115,17 @@ class Triangle(Tile):
 
         # Since this is a regular polygon, vertices are found at uniformely
         # spaced angular coordinates.
-        angles = 2*np.pi/3 * np.arange(3) - (1-self.variant) * np.pi / 6 + ((self.col + self.row) % 2) * np.pi
+        angles = (
+            2 * np.pi / 3 * np.arange(3)
+            - (1 - self.variant) * np.pi / 6
+            + ((self.col + self.row) % 2) * np.pi
+        )
 
         # Convert polar coordinates to Cartesian ones, and shift by the center
         # of the triangle.
-        return np.stack((self.x + radius * np.cos(angles), self.y + radius * np.sin(angles))).T
+        return np.stack(
+            (self.x + radius * np.cos(angles), self.y + radius * np.sin(angles))
+        ).T
 
     @staticmethod
     def _signed_area(x1, y1, x2, y2, x3, y3):
@@ -109,17 +148,27 @@ class Triangle(Tile):
         # Ti have the same ordering. To get the ordering, we just calculate
         # their signed areas using the cross-product.
         verts = self.vertices(border=0)
-        areas = np.array([
-            Triangle._signed_area(x, y, verts[0,0], verts[0,1], verts[1,0], verts[1,1]),
-            Triangle._signed_area(x, y, verts[1,0], verts[1,1], verts[2,0], verts[2,1]),
-            Triangle._signed_area(x, y, verts[2,0], verts[2,1], verts[0,0], verts[0,1])
-        ])
-        return np.all(areas>=0) or np.all(areas<=0)
+        areas = np.array(
+            [
+                Triangle._signed_area(
+                    x, y, verts[0, 0], verts[0, 1], verts[1, 0], verts[1, 1]
+                ),
+                Triangle._signed_area(
+                    x, y, verts[1, 0], verts[1, 1], verts[2, 0], verts[2, 1]
+                ),
+                Triangle._signed_area(
+                    x, y, verts[2, 0], verts[2, 1], verts[0, 0], verts[0, 1]
+                ),
+            ]
+        )
+        return np.all(areas >= 0) or np.all(areas <= 0)
 
     def adjacent(self, other):
         # Assuming that self and other have been generated using the same
         # geometric parameters (side length, spacing and variant), we can do a
         # lazy check: just verify that the distance between their centers is the
         # one expected between two neighbours.
-        distance = np.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
-        return np.allclose(distance, self.side_length / np.sqrt(3) + self.spacing)
+        distance = np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+        return np.allclose(
+            distance, self.side_length / np.sqrt(3) + self.spacing
+        )

@@ -25,17 +25,24 @@ def tight_figure(tiles):
     (xmin, ymin), (xmax, ymax) = get_bounding_box(tiles)
     ax.set_xlim(xmin, xmax)
     ax.set_ylim(ymin, ymax)
-    ax.tick_params(which="both", bottom=False, top=False, right=False,
-                   left=False, labelbottom=False, labelleft=False)
+    ax.tick_params(
+        which="both",
+        bottom=False,
+        top=False,
+        right=False,
+        left=False,
+        labelbottom=False,
+        labelleft=False,
+    )
     ax.set_axisbelow(True)
     fig.tight_layout()
     return fig, ax
 
 
-def add_tiles_to_axes(tiles, ax, copy=False, patch_color=None, border_color=None):
-    """Add al tiles in the list to the given axes.
-
-    """
+def add_tiles_to_axes(
+    tiles, ax, copy=False, patch_color=None, border_color=None
+):
+    """Add al tiles in the list to the given axes."""
     for tile in tiles:
         if copy:
             tile = tile.make_copy()
@@ -63,8 +70,10 @@ def toggle_tile_if_clicked(mouse_event, tile, axis):
 
     # Ignore events fired when the mouse is outside the drawing area.
     if mouse_event.xdata is None or mouse_event.ydata is None:
-        logger.debug(f"Event rejected due to empty coordinates: "
-                     f"{mouse_event.xdata=}, {mouse_event.ydata=}.")
+        logger.debug(
+            "Event rejected due to empty coordinates: "
+            f"{mouse_event.xdata=}, {mouse_event.ydata=}."
+        )
         return
 
     # Toggle the tile if the mouse is inside it.
@@ -100,8 +109,10 @@ def toggle_all_tiles(keyboard_event, tiles, axis):
     HIDE = "a"
     SHOW = "ctrl+a"
     if keyboard_event.key not in [TOGGLE, SHOW, HIDE]:
-        logger.debug("The keyboard event was ignored (the key did not match "
-                     "any target action).")
+        logger.debug(
+            "The keyboard event was ignored (the key did not match any target"
+            " action)."
+        )
         return
 
     # Change visibility of each tile depending on the given command.
@@ -113,7 +124,9 @@ def toggle_all_tiles(keyboard_event, tiles, axis):
         elif keyboard_event.key == HIDE:
             tile.set_visible(False)
         else:
-            logger.warning(f"Unrecognised (and unhandled) key '{keyboard_event.key}'")
+            logger.warning(
+                f"Unrecognised (and unhandled) key '{keyboard_event.key}'"
+            )
             break
 
     # Update the plot.
@@ -129,13 +142,16 @@ def wait_for_exit(figure):
     Args:
         figure: a (currently open) matplotlib.pyplot.Figure innstance.
     """
-    logger.debug("Creating exit_helper to wait until the target figure is "
-                 "closed.")
+    logger.debug(
+        "Creating exit_helper to wait until the target figure is closed."
+    )
 
     # Create a structure with the field 'keep_running' set to True, then add
     # a callback that changes it to False when the target figure is closed.
-    exit_helper = Struct(keep_running = True)
-    figure.canvas.mpl_connect('close_event', lambda event: setattr(exit_helper, "keep_running", False))
+    exit_helper = Struct(keep_running=True)
+    figure.canvas.mpl_connect(
+        "close_event", lambda event: setattr(exit_helper, "keep_running", False)
+    )
 
     # Stall in a loop until the figure is closed. Call 'pause' to ensure that
     # figures are updated regularly.

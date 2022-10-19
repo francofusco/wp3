@@ -1,8 +1,22 @@
+from .tile import Tile
 from collections import UserDict
 from copy import deepcopy
 import logging
 import pathlib
-from PyQt5.QtWidgets import QApplication, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 import sys
 import urllib.request
 import ruamel.yaml
@@ -48,14 +62,18 @@ def open_project():
     # there. Otherwise, just use the current location as base path.
     projects_dir = pathlib.Path("projects")
     if not projects_dir.is_dir():
-        logger.debug("Directory 'projects' not found: setting projects root as "
-                     "current directory.")
+        logger.debug(
+            "Directory 'projects' not found: setting projects root as "
+            "current directory."
+        )
         projects_dir = pathlib.Path(".")
 
     # Create a message box that asks the user to create or load a project.
     new_or_load_message_box = QMessageBox()
     new_or_load_message_box.setWindowTitle("WP3 Designer")
-    new_or_load_message_box.setText("Do you want to create a new project or load an existing one?")
+    new_or_load_message_box.setText(
+        "Do you want to create a new project or load an existing one?"
+    )
     new_or_load_message_box.setIcon(QMessageBox.Question)
     new_btn = new_or_load_message_box.addButton("New", QMessageBox.YesRole)
     load_btn = new_or_load_message_box.addButton("Load", QMessageBox.NoRole)
@@ -64,7 +82,9 @@ def open_project():
     # Wait for user's response, then take an action.
     logger.debug("Waiting for user to interact with message box.")
     new_or_load_message_box.exec()
-    logger.debug(f"User clicked on '{new_or_load_message_box.clickedButton()}'.")
+    logger.debug(
+        f"User clicked on '{new_or_load_message_box.clickedButton()}'."
+    )
     if new_or_load_message_box.clickedButton() == new_btn:
         logger.debug("Creating new project.")
 
@@ -83,10 +103,9 @@ def open_project():
         form = QFormLayout()
         project_name = QLineEdit()
         form.addRow("Project name", project_name)
-        tile_type = QLineEdit(settings["panels"]["type"])
+        tile_type = QComboBox()
+        tile_type.addItems(sorted(Tile._types.keys()))
         form.addRow("Tile type", tile_type)
-        side_length = QLineEdit(str(settings["panels"]["side_length"]))
-        form.addRow("Tiles side length", side_length)
         spacing = QLineEdit(str(settings["panels"]["spacing"]))
         form.addRow("Tiles spacing", spacing)
         rows = QLineEdit(str(settings["panels"]["rows"]))
@@ -95,7 +114,9 @@ def open_project():
         form.addRow("Canvas columns", columns)
 
         # Buttons to confirm or cancel project creation.
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
 
         # Auxiliary function that validates the project name. A project name is
         # valid if it points to a non-existing directory or to one that exists
@@ -109,44 +130,133 @@ def open_project():
             dir = projects_dir.joinpath(project_name)
             if dir.exists():
                 if dir.is_file():
-                    QMessageBox.critical(None, "Error", "Project name exists as a file")
+                    QMessageBox.critical(
+                        None, "Error", "Project name exists as a file"
+                    )
                     return
                 elif any(dir.iterdir()):
-                    QMessageBox.critical(None, "Error", "Project directory is not empty")
+                    QMessageBox.critical(
+                        None, "Error", "Project directory is not empty"
+                    )
                     return
             dialog.accept()
 
         # Connect signals and slots to validate or cancel project creation.
-        buttonBox.accepted.connect(lambda: accept_if_directory_is_empty(project_name.text(), new_project_dialog))
+        buttonBox.accepted.connect(
+            lambda: accept_if_directory_is_empty(
+                project_name.text(), new_project_dialog
+            )
+        )
         buttonBox.rejected.connect(new_project_dialog.reject)
 
         # Add the form and the buttons to the main layout of the dialog.
         main_layout.addLayout(form)
         main_layout.addWidget(buttonBox)
 
-        logger.debug("Created form dialog to create new project from given "
-                     "settings. Waiting for user interaction.")
+        logger.debug(
+            "Created form dialog to create new project from given "
+            "settings. Waiting for user interaction."
+        )
 
         # If the user clicks on "Cancel", quit.
         if not new_project_dialog.exec():
             logger.debug("The user did not validate the form. Quitting.")
             sys.exit()
 
-        # Create the directory that will contain the project.
-        project_dir = projects_dir.joinpath(project_name.text())
-        project_dir.mkdir(parents=True, exist_ok=True)
-
-        logger.debug(f"Creating new project in '{project_dir}'.")
-
         # Change the default settings by using those provided in the form.
-        settings["panels"]["type"] = tile_type.text()
-        settings["panels"]["side_length"] = float(side_length.text())
+        tile_type = tile_type.currentText()
+        settings["panels"]["tiles"] = {"type": tile_type}
         settings["panels"]["spacing"] = float(spacing.text())
         settings["panels"]["rows"] = int(rows.text())
         settings["panels"]["columns"] = int(columns.text())
 
-        # Convert the dictionary into a SettingsDict
+        # Get a list of configurable parameters for the chosen tile class.
+        tile_parameters = Tile._types.get(tile_type).configurable_parameters()
+
+        # Create a dialog window that allows the user to set values for the
+        # configurable parameters of the chosen Tile class.
+        tile_params_dialog = QDialog()
+        main_layout = QVBoxLayout()
+        tile_params_dialog.setLayout(main_layout)
+        tile_params_dialog.setWindowTitle(f"{tile_type} parameters")
+
+        # Create a form to enter the desired parameters.
+        form = QFormLayout()
+
+        # Create a combo box to select the tile variant. The widget is not
+        # displayed if there is a single choice.
+        variant = QComboBox()
+        variant.addItems(map(str, Tile._types.get(tile_type).get_variants()))
+        if variant.count() > 1:
+            form.addRow("Variant", variant)
+
+        # Add one line edit per configurable parameter.
+        line_edits = {
+            param: QLineEdit(str(ptype()))
+            for param, ptype in tile_parameters.items()
+        }
+        for param, edit in line_edits.items():
+            form.addRow(f"{param} ({tile_parameters[param].__name__})", edit)
+
+        # Buttons to confirm or cancel parameters.
+        buttonBox = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+
+        # Auxiliary function that validates the parameters. The requirement is
+        # that these parameters should be castable to their correct type.
+        def validate_parameters(widgets, param_types, dialog):
+            for param, widget in widgets.items():
+                ptype = param_types[param]
+                try:
+                    ptype(widget.text())
+                except ValueError:
+                    QMessageBox.critical(
+                        None,
+                        "Error",
+                        f"Invalid value '{widget.text()}' for parameter"
+                        f" '{param}' of type '{ptype.__name__}'",
+                    )
+                    return
+            dialog.accept()
+
+        # Connect signals and slots to validate or cancel parameter definitions.
+        buttonBox.accepted.connect(
+            lambda: validate_parameters(
+                line_edits, tile_parameters, tile_params_dialog
+            )
+        )
+        buttonBox.rejected.connect(tile_params_dialog.reject)
+
+        # Add the form and the buttons to the main layout of the dialog.
+        main_layout.addLayout(form)
+        main_layout.addWidget(buttonBox)
+
+        logger.debug("Created form dialog to pass tile-specific parameters.")
+
+        # If the user clicks on "Cancel", quit.
+        if not tile_params_dialog.exec():
+            logger.debug("The user did not validate the form. Quitting.")
+            sys.exit()
+
+        # Apply given settings.
+        logger.debug(f"Setting tile variant: {variant.currentText()}.")
+        settings["panels"]["tiles"]["variant"] = int(variant.currentText())
+        for param, ptype in tile_parameters.items():
+            param_value = line_edits[param].text()
+            logger.debug(
+                f"Setting tile parameter '{param}' of type '{ptype.__name__}'"
+                f" to '{param_value}'."
+            )
+            settings["panels"]["tiles"][param] = ptype(param_value)
+
+        # Convert the dictionary into a SettingsDict.
         settings = SettingsDict(settings)
+
+        # Create the directory that will contain the project.
+        project_dir = projects_dir.joinpath(project_name.text())
+        project_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Creating new project in '{project_dir}'.")
 
         # Save the new settings to re-load the project in the future.
         logger.debug("Creating the file 'config.yaml' for the project.")
@@ -158,9 +268,9 @@ def open_project():
         logger.debug("Loading project.")
 
         # Load an existing project.
-        file_name, _ = QFileDialog.getOpenFileName(None, "Open project",
-                                                   str(projects_dir),
-                                                   "YAML (*.yaml *.yml)")
+        file_name, _ = QFileDialog.getOpenFileName(
+            None, "Open project", str(projects_dir), "YAML (*.yaml *.yml)"
+        )
         logger.debug(f"User selected file '{file_name}'.")
 
         # If no selection was made, quit.
@@ -173,15 +283,18 @@ def open_project():
         logger.debug(f"Project directory: '{project_dir}'.")
         return project_dir, SettingsDict.from_yaml(file_name)
     else:
-        logger.debug("The user did not click on neither 'New' nor 'Load'. "
-                     "Quitting.")
+        logger.debug(
+            "The user did not click on neither 'New' nor 'Load'. Quitting."
+        )
         # The user clicked on "Cancel" or closed the window: quit.
         sys.exit()
 
 
 def update_initial_tiling(project_dir, settings, initial_tiling):
     logger.debug("Saving tiling into 'config.yaml'.")
-    store_seq(project_dir, settings, initial_tiling, ["panels", "initial_tiling"])
+    store_seq(
+        project_dir, settings, initial_tiling, ["panels", "initial_tiling"]
+    )
 
 
 def update_cached_routing(project_dir, settings, routing):
@@ -290,7 +403,9 @@ def load_materials(settings):
         # they are read as arrays of strings. This also allows to use inf as a
         # value for panels whose cost is dependent on the size.
         logger.debug(f"Casting 'size' to floats for material '{k}'.")
-        materials["sheets"][k]["size"] = list(map(float, materials["sheets"][k]["size"]))
+        materials["sheets"][k]["size"] = list(
+            map(float, materials["sheets"][k]["size"])
+        )
 
         # Make sure that the cost of the sheet is positive, or at least
         # non-negative.
@@ -314,9 +429,11 @@ def load_materials(settings):
             raise RuntimeError(f"Cost of leds '{k}' is negative.")
 
     # Return the list of materials, as a SettingsDict instance.
-    logger.debug(f"List of materials loaded. There are "
-                  f"{len(materials['sheets'])} sheets and "
-                  f"{len(materials['leds'])} leds.")
+    logger.debug(
+        "List of materials loaded. There are "
+        f"{len(materials['sheets'])} sheets and "
+        f"{len(materials['leds'])} leds."
+    )
     return SettingsDict(materials)
 
 
@@ -391,7 +508,9 @@ class SettingsDict(UserDict):
         UserDict.
         """
         if self.read_only:
-            raise RuntimeError(f"The settings dictionary is read-only, cannot set key '{key}'.")
+            raise RuntimeError(
+                f"The settings dictionary is read-only, cannot set key '{key}'."
+            )
         else:
             super().__setitem__(key, value)
 
@@ -406,7 +525,11 @@ class SettingsDict(UserDict):
         # and the execution is stoppped via sys.exit(). If use_exceptions is
         # True, an KeyError with the same error message is raised instead.
         if key not in self:
-            msg = f"The required key '{key}' could not be found in the namespace '{self.ns or '/'}'. Please, check your YAML configuration file."
+            msg = (
+                f"The required key '{key}' could not be found in the namespace"
+                f" '{self.ns or '/'}'. Please, check your YAML configuration"
+                " file."
+            )
             if self.use_exceptions:
                 raise KeyError(msg)
             else:
@@ -447,7 +570,6 @@ class SettingsDict(UserDict):
             The value for key if key is in the dictionary, else default.
         """
         return self[key] if key in self else default
-
 
     def extract(self, key, default=None):
         """Get a deep-copy of the value associated to the given key.

@@ -1,3 +1,6 @@
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Formatting](https://github.com/francofusco/wp3/workflows/Formatting/badge.svg)](https://github.com/francofusco/wp3/actions/workflows/formatting.yml)
+
 **TABLE OF CONTENTS**
 
 <!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
@@ -81,7 +84,7 @@ Anyway, here are the instructions to download all Python dependencies:
 1. Launch Anaconda Navigator and on the left select *Environments*.
 1. You should see a pre-installed environment, named *base (root)*. In the bottom, you should be able to create a new environment by clicking on the *create* button (featuring a "+" icon).
 1. Give a name to the environment, e.g., *wp3*.
-1. Make sure that, next to the label *Packages*, *Python* is checked while *R* is unchecked. You should be able to select a Python version. I recommend using `3.9.XX` since is the one I used, but do as you please.
+1. Make sure that, next to the label *Packages*, *Python* is checked while *R* is unchecked. You should be able to select a Python version. I recommend using the same version as the one used by FreeCAD (`3.8.XX` at the time of writing) since this allows to export STL files automatically, but do as you please.
 1. Click on *Create* and wait for the environment to be ready.
 1. You should see a list of packages that are already installed. On the top, switch from the option *Installed* to *All*.
 1. On the top-right, there should be a package search bar. Click inside it and type `numpy`. In the list, look for the package named `numpy` and select it. Go back to the search bar and type `matplotlib`, then select `matplotlib` from the package list. Do the same a third time to locate and select the package `ruamel.yaml`.
@@ -89,7 +92,7 @@ Anyway, here are the instructions to download all Python dependencies:
 
 ![imgs/anaconda.gif](imgs/anaconda.gif)
 
-| :warning: The gif is not up to date and installs `PyYAML` instead of `ruamel.yaml`. Make sure to select the latter, not the former! |
+| :warning: The gif is not up to date: it uses Python 3.9 instead of Python 3.8 and installs `PyYAML` instead of `ruamel.yaml`. Make sure to select the latter, not the former! |
 | --- |
 
 Python is now configured! You can close the Anaconda navigator and proceed to the next step.
@@ -258,12 +261,19 @@ Grouped under `panels`.
 
 | Parameter | Type | Description |
 | :-------: | :--: | ----------- |
-| `type` | `str` | Type of each tile. It should correspond to the name of one of the `Tile` subclasses (`Triangle`, `Rectangle` or `Hexagon`). Optionally, the name can be followed by a `#` and an integer that identifies the variant of the tile. As an example, you might write `type: Hexagon#1` or `type: Triangle` (which is equivalent to `type: Triangle#0`). |
 | `rows` | `int` | Number of rows in the designer area. |
 | `columns`| `int` | Number of columns in the designer area. |
-| `side_length` | `float` | Lateral size of the tiles, in meters. |
 | `spacing` | `float` | Distance between the sides of two adjacent tiles, in meters. |
 | `initial_tiling` | `array` | Optional. This parameter allows to load a custom design on startup. The array is just a list of row-column pairs corresponding to tiles that should be visible on launch. After generating a composition of panels, the designer automatically updates the configuration file by storing the array corresponding to the current design. Therefore, you should not need to edit this parameter manually. |
+
+In addition, tile specific parameters are grouped under `panels/tiles`.
+
+| Parameter | Type | Description |
+| :-------: | :--: | ----------- |
+| `type` | `str` | Type of each tile. It should correspond to the name of one of the `Tile` subclasses, *e.g.*, `Rectangle` or `Hexagon`.
+| `variant` | `int` | Optional. Allows to select a variant for the tile, if multiple variants are allowed. This affects the orientation of the tiles or how they stack together. |
+
+Each tile type offers a couple of additional parameters that you can modify. These parameters might be specific to the selected `Tile` sub-class and not available for all types.
 
 
 ### Routing settings
@@ -492,3 +502,13 @@ For the moment, I will just keep a short list of things that will be worth menti
 
 - To create the executable you will need to download the PyInstaller package, *e.g.*, `pip install pyinstaller` or `conda install pyinstaller`. Once that is done, you can run (in an Anaconda terminal) the `build_exe.bat` script to create an executable under Windows.
 - While log files are generated automatically, you can also change verbosity level from the command line. Type `python wp3_designer.py --help` for the list of arguments that you can pass.
+- Code formatting:
+	- The style is the one enforced by [Black](https://github.com/psf/black). To keep the code formatted, include the package to your virtual environment (`pip install black` or `conda install black`) and run it from the top-level directory of the project: `black .` or `python -m black .`.
+	- You also need to check comments manually using the script `comment_checker.py`:
+		1. Run `python comment_checker.py . wp3`: it will scan all python files and tell you which ones contain comments that are too long, and at which lines.
+		1. Edit the flagged comments. This is a manual process, unluckily... To speed up the process, you can add the option `--annotate` when running `comment_checker.py`. This overwrite the files by adding the marker `<<<<<` at the end of long comment lines. In this way, you can open the files and do a search for `<<<<<` to quickly find lines that need fixing.
+	- Whenever the code is pushed, a GitHub action will check formatting and report failure if either Black or `comment_checker.py` find any issue.
+- To add new panel types:
+	1. Create a new python file inside `wp3` and give it a meaningful name, *e.g.*, `star.py` if you are creating star-shaped panels.
+	1. Create inside it a class that inherits from `Tile` and implement the methods `configure()`, `configurable_parameters()`, `calculate_center()`, `create_patches()`, `vertices()`, `contains()`, `adjacent()` and, optionally, `get_variants()`.
+	1. Import the tile type into the `wp3` module. The instruction (to be added into `wp3/__init__.py`) might look like `from .start import Star`.

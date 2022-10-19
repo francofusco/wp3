@@ -1,4 +1,7 @@
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class Tile(object):
@@ -7,6 +10,105 @@ class Tile(object):
     This base class groups some utility functions related to tiling, plotting,
     etc. Subclasses implement the logic related to the geometry they use.
     """
+
+    # This dictionary is populated with pairs (class name, calss type), to let
+    # one easily create tile types from strings.
+    _types = {}
+
+    def __init_subclass__(cls, **kwargs):
+        """Register a subclass type into the static `_types` variable."""
+        super().__init_subclass__(**kwargs)
+        Tile._types[cls.__name__] = cls
+
+    @staticmethod
+    def load_tile_type(tile_settings):
+        """Return a class type to create new tiles.
+
+        In addition to selecting the requested sub-class type, the method sets
+        all requested parameters for the class.
+
+        Args:
+            tile_settings: a SettingsDict that contains the required settings.
+                It must contain the keyword `"type"`, with its value matching to
+                the name of an existing Tile subclass. It may contain the
+                keyword `"variant"`, which is ignored here. Other keys must
+                correspond to parameters accepted by the method `configure()` of
+                the specified sub-class. A list of such parameters should be
+                returned by the class method configurable_parameters().
+        Returns:
+            cls: the requested subclass of Tile.
+        """
+        # Get a Tile subclass from its name.
+        tile_type = tile_settings["type"]
+        cls = Tile._types.get(tile_type)
+
+        # Make sure the name is valid.
+        if cls is None:
+            raise RuntimeError(
+                f"The panels type '{tile_type}' does not exist. Valid types"
+                f" are: {', '.join(sorted(Tile._types.keys()))}. Please, check"
+                " your YAML configuration file."
+            )
+
+        # Some settings are not meant for the specific class subtype: remove
+        # them!
+        exclude_keys = ["type", "variant"]
+        logger.debug(
+            f"Preparing to configure class type '{tile_type}'. Settings contain"
+            f" the keys: {', '.join(tile_settings.keys())}. The ones to be"
+            " removed for subclass configuration are:"
+            f" {', '.join(exclude_keys)}"
+        )
+
+        # Parameters that will be passed to configure(), vs expected ones.
+        tile_parameters = {
+            k: v for k, v in tile_settings.items() if k not in exclude_keys
+        }
+        expected_parameters = cls.configurable_parameters()
+
+        # Check for missing parameters, in both "directions".
+        for k in tile_parameters:
+            if k not in expected_parameters:
+                logger.warning(
+                    f"Provided settings contain the parameter '{k}', which does"
+                    " not appear in the values returned by"
+                    " configurable_parameters()."
+                )
+        for k in expected_parameters:
+            if k not in tile_parameters:
+                logger.warning(
+                    "The values returned by configurable_parameters() contain"
+                    f" the parameter '{k}', which does not appear in the"
+                    " provided settings."
+                )
+
+        # Configure the subclass by setting its attributes.
+        try:
+            cls.configure(**tile_parameters)
+        except Exception as e:
+            raise RuntimeError(
+                "Exception occurred when configuring the Tile subclass"
+                f" '{tile_type}'. This is likely due to a malformed YAML"
+                f' configuration file. Original exception message: "{e}".'
+            ) from e
+
+        # Return the configured class.
+        return cls
+
+    @classmethod
+    def configure(cls, *args, **kwargs):
+        raise NotImplementedError(
+            "The class method 'configure()' must be defined in all Tile"
+            " sub-classes to set custom configuration parameters."
+        )
+
+    @classmethod
+    def configurable_parameters(cls):
+        raise NotImplementedError(
+            "The class method 'configurable_parameters()' must be defined in"
+            " all Tile sub-classes to return a dictionary of configurable"
+            " parameters, in the form {'name': type}."
+        )
 
     @classmethod
     def get_variants(cls):
@@ -22,7 +124,9 @@ class Tile(object):
         return [0]
 
     @classmethod
-    def fit_in_sheet(cls, num_tiles, spacing, side_length, variant, sheet_width, sheet_height):
+    def fit_in_sheet(
+        cls, num_tiles, spacing, variant, sheet_width, sheet_height
+    ):
         """Fit as many tiles as possible inside a rectangular domain.
 
         This function tries to fit a certain number of tiles (at most) in a
@@ -69,9 +173,11 @@ class Tile(object):
         # Keep looping until all tiles have been placed.
         while len(tiles) < num_tiles:
             # Create a tile that should fit in the current grid coordinates.
-            tile = cls(row, col, spacing, side_length, variant)
+            tile = cls(row, col, spacing, variant)
 
-            if tile.within((0, sheet_width), (0, sheet_height), tolerance=1e-10):
+            if tile.within(
+                (0, sheet_width), (0, sheet_height), tolerance=1e-10
+            ):
                 # If the tile does fit, "place it" and then go to the
                 # second-next column. We advance by two due to the vertical
                 # offsets that are present in odd columns when using some shapes
@@ -102,24 +208,25 @@ class Tile(object):
         # Exit by returning the list of tiles that could be fit in the domain.
         return tiles
 
-    def __init__(self, row, col, spacing, side_length, variant):
+    def __init__(self, row, col, spacing, variant):
         """Constructor for a tile.
 
         Args:
             row: vertical grid coordinate of the tile.
             col: horizontal grid coordinate of the tile.
             spacing: margin between adjacent tiles.
-            side_length: size of a side of the tile.
             variant: some tiles allow variants for placement in a grid. This
                 value can be used to select one such variant.
         """
         if variant not in self.get_variants():
-            raise ValueError(f"Invalid variant {variant} for type {type(self).__name__}. Allwed values: {', '.join(map(str, self.get_variants()))}")
+            raise ValueError(
+                f"Invalid variant {variant} for type {type(self).__name__}."
+                f" Allwed values: {', '.join(map(str, self.get_variants()))}"
+            )
 
         # Store parameters.
         self.row = row
         self.col = col
-        self.side_length = side_length
         self.spacing = spacing
         self.variant = variant
 
@@ -136,8 +243,9 @@ class Tile(object):
         Returns:
             x, y: Cartesian coordinates of the center of the tile.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplementedError(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def create_patches(self):
         """Create patches to be added to a matplotlib figure.
@@ -149,8 +257,9 @@ class Tile(object):
                 border of a tile. This will be placed under its corresponding
                 patch and therefore it does not need to have holes.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplementedError(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def make_copy(self):
         """Create a copy of this Tile by calling its constructor.
@@ -162,8 +271,7 @@ class Tile(object):
             tile: a copy of self, created by calling the constructor. This does
                 not copy the visibility or the color of the tile.
         """
-        return type(self)(self.row, self.col, self.spacing, self.side_length,
-                          self.variant)
+        return type(self)(self.row, self.col, self.spacing, self.variant)
 
     def center(self):
         """Center coordinates, as a NumPy array."""
@@ -182,8 +290,9 @@ class Tile(object):
         Returns:
             verts: a NumPy array with shape (n_vertices, 2).
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplementedError(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def perimeter(self, border=0):
         """Calculate the perimeter of the tile.
@@ -210,12 +319,14 @@ class Tile(object):
         verts = np.roll(self.vertices(border=border), -first_corner, axis=0)
         verts = np.vstack((verts, [verts[0]]))
         d = np.diff(verts, axis=0)
-        t_verts = np.concatenate(([0], np.cumsum(np.sqrt(np.einsum("ij,ij->i", d, d)))))
+        t_verts = np.concatenate(
+            ([0], np.cumsum(np.sqrt(np.einsum("ij,ij->i", d, d))))
+        )
         t = np.linspace(0, self.perimeter(border=border), samples + 1)[:-1]
         t += t[1] / 2
         x = np.interp(t, t_verts, verts[:, 0])
         y = np.interp(t, t_verts, verts[:, 1])
-        return np.stack((x,y)).T
+        return np.stack((x, y)).T
 
     def within(self, x_range, y_range, include_border=True, tolerance=0.0):
         """Tells if this tile fits the given rectangular domain.
@@ -237,10 +348,12 @@ class Tile(object):
         verts = self.vertices(border=1.0 if include_border else 0.0)
 
         # Check if all vertices are within the bounds.
-        return np.all(x_range[0] - tolerance <= verts[:,0]) and \
-               np.all(verts[:,0] <= x_range[1] + tolerance) and \
-               np.all(y_range[0] - tolerance <= verts[:,1]) and \
-               np.all(verts[:,1] <= y_range[1] + tolerance)
+        return (
+            np.all(x_range[0] - tolerance <= verts[:, 0])
+            and np.all(verts[:, 0] <= x_range[1] + tolerance)
+            and np.all(y_range[0] - tolerance <= verts[:, 1])
+            and np.all(verts[:, 1] <= y_range[1] + tolerance)
+        )
 
     def contains(self, x, y):
         """Check if a point lies within this tile.
@@ -251,8 +364,9 @@ class Tile(object):
             contained: True if the point is within the tile. The border is not
                 considered for this check.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplementedError(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def adjacent(self, other):
         """Check if this tile is adjacent to another.
@@ -266,8 +380,9 @@ class Tile(object):
         Returns:
             True if the tiles are adjacent, False otherwise.
         """
-        raise NotImplemented("This method is abstract and must be implemented "
-                             "in sub-classes.")
+        raise NotImplementedError(
+            "This method is abstract and must be implemented in sub-classes."
+        )
 
     def add_to_axis(self, ax):
         """Add the tile and its border to a plot.
@@ -321,7 +436,10 @@ def unique_vertices(tiles):
     for tile in tiles[1:]:
         for v in tile.vertices(border=0.5):
             vector_distances = vertices - v
-            if not np.isclose(np.einsum("ij,ij->i", vector_distances, vector_distances).min(), 0):
+            if not np.isclose(
+                np.einsum("ij,ij->i", vector_distances, vector_distances).min(),
+                0,
+            ):
                 vertices = np.vstack((vertices, v))
     return vertices
 

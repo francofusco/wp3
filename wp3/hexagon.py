@@ -5,6 +5,18 @@ from .tile import Tile
 
 class Hexagon(Tile):
     @classmethod
+    def configure(cls, side_length=None):
+        if side_length is None:
+            raise ValueError(
+                "The mandatory parameter 'side_length' was not specified."
+            )
+        cls.side_length = side_length
+
+    @classmethod
+    def configurable_parameters(cls):
+        return {"side_length": float}
+
+    @classmethod
     def get_variants(cls):
         # There are two variants:
         # - Hexagons from variant 0 have horizontal edges on their top and
@@ -17,12 +29,16 @@ class Hexagon(Tile):
         # The code below is designed for hexagons of variant 0. However, we
         # can swap the grid coordinates, do the calculations, and swap the
         # result in order to deal with the other variant as well.
-        row, col = (self.col, self.row) if self.variant else (self.row, self.col)
+        row, col = (
+            (self.col, self.row) if self.variant else (self.row, self.col)
+        )
 
         # Coordinates of the center, so that the pair (0,0) is mapped into the
         # origin of the catesian plane.
         x = col * (3 * self.side_length + np.sqrt(3) * self.spacing) / 2
-        y = (row if col%2==0 else (row+0.5)) * (np.sqrt(3) * self.side_length + self.spacing)
+        y = (row if col % 2 == 0 else (row + 0.5)) * (
+            np.sqrt(3) * self.side_length + self.spacing
+        )
 
         # Shift the coordinates so that the hexagon with grid coordinates (0,0)
         # touches the x and y axes. This is useful for filling rectangles, which
@@ -39,8 +55,18 @@ class Hexagon(Tile):
 
     def create_patches(self):
         # Return two hexagons with different sizes.
-        inner = RegularPolygon((self.x, self.y), 6, radius=self.side_length, orientation=(1-self.variant) * np.pi/6)
-        outer = RegularPolygon((self.x, self.y), 6, radius=self.side_length+self.spacing*2/np.sqrt(3), orientation=(1-self.variant) * np.pi/6)
+        inner = RegularPolygon(
+            (self.x, self.y),
+            6,
+            radius=self.side_length,
+            orientation=(1 - self.variant) * np.pi / 6,
+        )
+        outer = RegularPolygon(
+            (self.x, self.y),
+            6,
+            radius=self.side_length + self.spacing * 2 / np.sqrt(3),
+            orientation=(1 - self.variant) * np.pi / 6,
+        )
         return inner, outer
 
     def vertices(self, border=1.0):
@@ -49,13 +75,15 @@ class Hexagon(Tile):
 
         # Since this is a regular polygon, vertices are found at uniformely
         # spaced angular coordinates.
-        angles = np.pi/3 * np.arange(6)
+        angles = np.pi / 3 * np.arange(6)
         if self.variant:
-            angles += np.pi/6
+            angles += np.pi / 6
 
         # Convert polar coordinates to Cartesian ones, and shift by the center
         # of the hexagon.
-        return np.stack((self.x + radius * np.cos(angles), self.y + radius * np.sin(angles))).T
+        return np.stack(
+            (self.x + radius * np.cos(angles), self.y + radius * np.sin(angles))
+        ).T
 
     def contains(self, x, y):
         # Distance between the point and the center of the hexagon. The absolute
@@ -72,12 +100,17 @@ class Hexagon(Tile):
 
         # Check if the reflection is inside the hexagon. This requires just two
         # inequalities.
-        return dy <= self.side_length * np.sqrt(3) / 2 and np.sqrt(3) * dx + dy <= np.sqrt(3) * self.side_length
+        return (
+            dy <= self.side_length * np.sqrt(3) / 2
+            and np.sqrt(3) * dx + dy <= np.sqrt(3) * self.side_length
+        )
 
     def adjacent(self, other):
         # Assuming that self and other have been generated using the same
         # geometric parameters (side length, spacing and variant), we can do a
         # lazy check: just verify that the distance between their centers is the
         # one expected between two neighbours.
-        distance = np.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
-        return np.allclose(distance, np.sqrt(3) * self.side_length + self.spacing)
+        distance = np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+        return np.allclose(
+            distance, np.sqrt(3) * self.side_length + self.spacing
+        )
