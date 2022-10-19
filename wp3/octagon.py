@@ -64,7 +64,7 @@ class Octagon(Tile):
         r = self.side_length * np.sqrt(1 + 1 / np.sqrt(2))
         dr = r * 2 * self.spacing / ((1 + np.sqrt(2)) * self.side_length)
         radius = r + border * dr
-        angles = np.pi * (np.arange(6) / 4 + 1 / 8)
+        angles = np.pi * (np.arange(8) / 4 + 1 / 8)
         return np.stack(
             (self.x + radius * np.cos(angles), self.y + radius * np.sin(angles))
         ).T
