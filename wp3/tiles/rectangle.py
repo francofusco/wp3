@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib.patches import RegularPolygon
-from .tile import Tile
+from wp3.freecad import wp3_export_default
+from wp3.tile import Tile, count_cad_parts_in_regular_tiling
 
 
 class Rectangle(Tile):
@@ -15,6 +16,10 @@ class Rectangle(Tile):
     @classmethod
     def configurable_parameters(cls):
         return {"side_length": float}
+
+    @classmethod
+    def count_cad_parts(cls, tiles):
+        return count_cad_parts_in_regular_tiling(tiles, 4)
 
     def calculate_center(self):
         # Calculate the coordinates. This is straightforward since squares stack
@@ -73,3 +78,12 @@ class Rectangle(Tile):
         # To check if two squares are adjacent, we can simply verify it their
         # manhattan distance in the grid is equal to 1.
         return np.abs(self.row - other.row) + np.abs(self.col - other.col) == 1
+
+    def export_stl(self, path, **params):
+        return wp3_export_default(
+            path,
+            side_length=self.side_length * 1e3,
+            spacing=self.spacing * 1e3,
+            junction_angle=45,
+            **params
+        )

@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib.patches import RegularPolygon
-from .tile import Tile
+from wp3.tile import Tile
 
 
 class Octagon(Tile):
