@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib.patches import Polygon, RegularPolygon
-from .tile import Tile
+from wp3.freecad import wp3_export_default
+from wp3.tile import Tile, count_cad_parts_in_regular_tiling
 
 
 class Triangle(Tile):
@@ -24,6 +25,10 @@ class Triangle(Tile):
         # - Triangles from variant 1 have a vertical edge either on the left or
         #   on the right.
         return [0, 1]
+
+    @classmethod
+    def count_cad_parts(cls, tiles):
+        return count_cad_parts_in_regular_tiling(tiles, 6)
 
     def calculate_center(self):
         # The code below is designed for triangles of variant 0. However, we
@@ -171,4 +176,13 @@ class Triangle(Tile):
         distance = np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
         return np.allclose(
             distance, self.side_length / np.sqrt(3) + self.spacing
+        )
+
+    def export_stl(self, path, **params):
+        return wp3_export_default(
+            path,
+            side_length=self.side_length * 1e3,
+            spacing=self.spacing * 1e3,
+            junction_angle=60,
+            **params
         )

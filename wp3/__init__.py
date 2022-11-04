@@ -1,4 +1,4 @@
-from .hexagon import Hexagon
+from .firmware import download_pico_firmware
 from .mpl import (
     add_tiles_to_axes,
     tight_figure,
@@ -6,9 +6,7 @@ from .mpl import (
     toggle_all_tiles,
     wait_for_exit,
 )
-from .octagon import Octagon
 from .optimization import Routing, named_tree_search
-from .rectangle import Rectangle
 from .settings import (
     load_materials,
     open_project,
@@ -20,11 +18,13 @@ from .struct import Struct
 from .tile import (
     Tile,
     unique_vertices,
+    create_vertices_map,
+    count_vertices_repetitions,
     get_bounding_box,
     get_bounding_box_size,
     get_bounding_box_area,
 )
-from .triangle import Triangle
+from .tiles import *
 import numpy as np
 
 

@@ -1,4 +1,4 @@
-from .tile import Tile, unique_vertices
+from .tile import Tile, create_vertices_map
 import logging
 import numpy as np
 import matplotlib.patches
@@ -47,34 +47,9 @@ class Routing:
                 f"Received value: {segments}."
             )
 
-        # List of all unique 2D points in the group of tile vertices.
-        self.vertices = unique_vertices(tiles)
-
-        # Create a list that provides, for each tile, the included vertices.
-        tiles_indices = []
-
-        for tile in tiles:
-            # This is a fast (maybe convoluted) way to create a matrix of
-            # squared distances, such that vector_distances[i,j] provides the
-            # displacement between the vertex vertices[i] and the j-th vertex of
-            # the tile.
-            vector_distances = self.vertices.reshape(-1, 1, 2) - tile.vertices(
-                border=0.5
-            ).reshape(1, -1, 2)
-
-            # Using Einstein's summation, convert displacement vectors into
-            # scalars. The result is a matrix D whose elements D[i,j] are the
-            # squared distances between vertices[i] and the j-th vertex of the
-            # tile. By taking argmin along the first axis, we are left with six
-            # values: they represent the indices of each vertex of the tile.
-            tiles_indices.append(
-                np.einsum(
-                    "ijk,ijk->ij", vector_distances, vector_distances
-                ).argmin(axis=0)
-            )
-
-        # Convert into an array.
-        self.tiles = np.array(tiles_indices)
+        # List of all unique 2D points in the group of tile vertices, plus list
+        # that provides, for each tile, the included vertices.
+        self.vertices, self.tiles = create_vertices_map(tiles)
 
         # Store some dimensions for faster and clearer access.
         self.n_vertices = len(self.vertices)
@@ -96,6 +71,16 @@ class Routing:
             f"{self.cuts}. The list that gives for each tile which "
             f"vertices it contains is:\n{self.tiles}"
         )
+
+    def tiles_per_segment(self):
+        """Returns the number of tiles that are part of each segment."""
+        segments = []
+        istart = 0
+        for cut in self.cuts:
+            segments.append(cut + 1 - istart)
+            istart = cut + 1
+        segments.append(self.n_tiles - istart)
+        return segments
 
     def random_sample(self):
         """Create a routing sample at random.

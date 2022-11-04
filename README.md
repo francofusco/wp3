@@ -15,6 +15,7 @@
 		- [Launching the designer from the command line](#launching-the-designer-from-the-command-line)
 	- [Quick overview of the designer](#quick-overview-of-the-designer)
 		- [Creating and loading projects](#creating-and-loading-projects)
+		- [Exporting STL files](#exporting-stl-files)
 		- [Choosing panel locations](#choosing-panel-locations)
 		- [Routing](#routing)
 		- [Materials and result files](#materials-and-result-files)
@@ -24,14 +25,16 @@
 			- [Bill of materials](#bill-of-materials)
 	- [Configuration of the designer](#configuration-of-the-designer)
 		- [Panels settings](#panels-settings)
+		- [FreeCAD settings](#freecad-settings)
 		- [Routing settings](#routing-settings)
 		- [SignalRGB components settings](#signalrgb-components-settings)
 		- [Materials settings](#materials-settings)
 		- [Assembly settings](#assembly-settings)
 - [Building the panels](#building-the-panels)
 	- [Purchasing the components](#purchasing-the-components)
-	- [Updating the CAD and 3D-printing the walls](#updating-the-cad-and-3d-printing-the-walls)
-	- [Walls made out of cardboard as a cheap alternative](#walls-made-out-of-cardboard-as-a-cheap-alternative)
+	- [Manufacturing the walls](#manufacturing-the-walls)
+		- [3D-printed walls and joints](#3d-printed-walls-and-joints)
+		- [Cardboard walls as a cheap alternative](#cardboard-walls-as-a-cheap-alternative)
 	- [Assembling the panels](#assembling-the-panels)
 	- [SignalRGB integration](#signalrgb-integration)
 		- [Preparing the Pico controller](#preparing-the-pico-controller)
@@ -61,9 +64,6 @@ In my original vision, these panels are meant to be used with [SignalRGB](https:
 
 ## FreeCAD
 
-| :warning: I do not own a 3D printer and therefore I have not tried printing the provided 3D models yet. I will probably need to update them once I manage to find a 3D printer and build a couple of panels. |
-| :-- |
-
 | :information_source: This software is used to export CAD files to be printed in 3D. If you are planning to create the supporting walls in a different way, e.g., using cardboard, you can skip this. |
 | :-- |
 
@@ -87,8 +87,11 @@ Anyway, here are the instructions to download all Python dependencies:
 1. Make sure that, next to the label *Packages*, *Python* is checked while *R* is unchecked. You should be able to select a Python version. I recommend using the same version as the one used by FreeCAD (`3.8.XX` at the time of writing) since this allows to export STL files automatically, but do as you please.
 1. Click on *Create* and wait for the environment to be ready.
 1. You should see a list of packages that are already installed. On the top, switch from the option *Installed* to *All*.
-1. On the top-right, there should be a package search bar. Click inside it and type `numpy`. In the list, look for the package named `numpy` and select it. Go back to the search bar and type `matplotlib`, then select `matplotlib` from the package list. Do the same a third time to locate and select the package `ruamel.yaml`.
+1. On the top-right, there should be a package search bar. Click inside it and type `numpy`. In the list, look for the package named `numpy` and select it. Go back to the search bar and type `matplotlib`, then select `matplotlib` from the package list. Do the same a third time to locate and select the packages `ruamel.yaml` and `selenium`.
 1. In the bottom right corner you should see a green button showing the text *Apply*: click on it. Anaconda will then open a pop-up window asking to install several packages. Click on *Apply* to install the three selected packages and their dependencies. This might take a while, just be patient and wait.
+1. Click on the green button with the "play" icon, next to the environment name.
+1. Select the option *Open Terminal* (it should be the first one).
+1. In the terminal, type `pip install webdriver-manager` and press enter.
 
 ![imgs/anaconda.gif](imgs/anaconda.gif)
 
@@ -141,6 +144,15 @@ After launching the designer, a dialog window should open, asking to create a ne
 If you choose to create a new one, enter its name and change the default parameters if you wish (more details about their meaning are provided in the section [Configuration of the designer](#configuration-of-the-designer)). The project will be stored inside a folder with the given project name and a configuration file, named `config.yaml` will be created.
 
 If you wish to load an existing project, move to the folder that contains it and select its `config.yaml` file.
+
+
+### Exporting STL files
+
+This step is a "hidden one", in the sense that it is run silently right after creating or loading a project. If FreeCAD has been installed and the Python interpreter can locate it, then the designer will open the parametric CAD file `cad/wp3-walls-v2.FCStd` and update its parameters according to the project settings. It then exports STL files for walls and joints, so that they can be 3D printed.
+
+By default, the only parameters that are updated are the side length and spacing of panels. However, you can update other parameters as well. There are two ways to do it, the first being to directly modify `cad/wp3-walls-v2.FCStd` (I suggest that you make a backup copy first). Open the file in FreeCAD and in the list of components (the tree view on the left) double-click the spreadsheet named `params`. It should open the list of parameters used by the CAD project. The parameters colored in green are those that you would normally have to edit to adapt the design to your choices and export STLs manually. Red parameters are calculated from other values and should not be edited manually. The remaining parameters are "advanced ones". You are free to change them, but beware that large changes could break a design.
+
+The second (preferred) way to change parameters in the design is to specify their values inside the `config.yaml` file. Please, refer to the corresponding section below, [FreeCAD settings](#freecad-settings).
 
 
 ### Choosing panel locations
@@ -234,6 +246,8 @@ This scheme allows to locate each LED individually in the custom design. Further
 
 For each given LED density, the routing scheme and the JSON files are generated respectively under the names `design_info/wp3_routing_XXX_leds_per_tile.pdf` and  `design_info/wp3_signal_rgb_PROJECT-NAME_XXX_leds[VARIANT].json`, where `XXX` is the number of LEDs that the designer determined can fit in a single panel, `PROJECT-NAME` is, well, the name of the project and `[VARIANT]` is a string that depends on the type of exported component.
 
+Last but not least, the designer configures and downloads from [SRGBmods](https://srgbmods.net/) the firmware to be loaded on a Raspberry Pi Pico to use the panels in SignalRGB.  
+
 
 #### Bill of materials
 
@@ -274,6 +288,33 @@ In addition, tile specific parameters are grouped under `panels/tiles`.
 | `variant` | `int` | Optional. Allows to select a variant for the tile, if multiple variants are allowed. This affects the orientation of the tiles or how they stack together. |
 
 Each tile type offers a couple of additional parameters that you can modify. These parameters might be specific to the selected `Tile` sub-class and not available for all types.
+
+
+### FreeCAD settings
+
+Grouped under `freecad`. All parameters are optional. If the values do not make sense, e.g., the height of a wall is smaller than that of the junction, errors might occur.
+
+| :warning: All values must be given in mm (millimeters) since this is the unit used in FreeCAD. |
+| --- |
+
+| :warning: Some CAD parameters are modified automatically by the designer, do not specify them here. The parameters are `side_length`, `spacing`, `junction_angle` and `joint_num_walls`. |
+| --- |
+
+
+| Parameter | Type | Description |
+| :-------: | :--: | ----------- |
+| `freecad_path` | `str` | Path to FreeCAD's `bin` directory, containing the Python module `FreeCAD.pyd`. |
+| `plexiglass_thickness` | `float` | Change the thickness of the plexiglass to the specified one. |
+| `height` | `float` | See technical drawing. |
+| `support_height` | `float` | See technical drawing. |
+| `support_thickness` | `float` | See technical drawing. |
+| `support_play` | `float` | See technical drawing. |
+| `junction_height` | `float` | See technical drawing. |
+| `junction_indent` | `float` | See technical drawing. |
+| `junction_hole_radius_desired` | `float` | See technical drawing. Note that the actual size of the junction hole radius could be smaller if there is not enough space.  |
+| `joint_thickness` | `float` | See technical drawing. |
+
+![imgs/cad_blueprint.png](imgs/cad_blueprint.png)
 
 
 ### Routing settings
@@ -394,7 +435,7 @@ In addition to the LED strips and the sheets to manufacture the panels, you will
 
 - A bunch of JST SM 3 Pin Connectors, such as [these ones](https://www.amazon.fr/gp/product/B01DC0KIT2/ref=ppx_yo_dt_b_asin_title_o02_s00?ie=UTF8&th=1). You will need two pairs of cables per panel.
 
-- A [Raspberry Pi Pico W](https://www.raspberrypi.com/products/raspberry-pi-pico/) to control the panels using SignalRGB.
+- A [Raspberry Pi Pico](https://www.raspberrypi.com/products/raspberry-pi-pico/) to control the panels using SignalRGB.
 
 - A Power Supply Unit such as [this one](https://www.amazon.fr/gp/product/B07DQKM9P7/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1) or similar, just make sure to choose the correct wattage! In alternative, you can borrow some power from the PSU of your PC, but make sure you will not draw too much current.
 
@@ -402,40 +443,25 @@ In addition to the LED strips and the sheets to manufacture the panels, you will
 
 - Soldering equipment.
 
+- A level shifter to make sure that 3V3 signals from the Pico are raised to 5V, *i.e.*, the logic level used by the strips.
 
-## Updating the CAD and 3D-printing the walls
-
-| :warning: I do not own a 3D printer and therefore I have not tried printing the provided 3D models yet. I will probably need to update them once I manage to find a 3D printer and build a couple of panels. |
-| :-- |
-
-The provided CAD file is parametric, meaning that you can change some values and the whole design will be updated accordingly. There are two types of component to be printed: *inner walls* (sides shared by two panels) and *outer walls* (sides belonging to a unique hexagon). The difference is that inner walls have a small support for the acrylic panels on both sides, while outer walls have this support on one side only. Here is a sketch of an outer wall:
-
-![imgs/cad_blueprint.png](imgs/cad_blueprint.png)
-
-Green measures represent parameters that can be changed in FreeCAD to customize the component. In principle, you should just update the parameters *Side Length*, *Spacing* and *Junction Angle* (not shown in the sketch) to reflect the choices you made for your panels, but you can play around with the others as well if you want to.
-
-Whatever your decision, to update the CAD start by opening the file `cad/wall.FCStd` in FreeCAD. Now, follow these steps:
-
-1. On the left, you should be able to locate a spreadsheet named *parameters*. Double click on it to open the spreadsheet view.
-1. You can now change the parameters as needed. As mentioned, you probably just need to update *Side Length*, *Spacing* and *Junction Angle* (and perhaps *Plexiglass Thickness* depending on the plexiglass sheets that you are going to purchase). The correct values that you should enter can be found in the bill of materials.
-1. Back in the combo view (the menu on the left), select the object named *inner-wall* by double clicking on it.
-1. Go to *File/Export* and select *STL Mesh (\*.stl)* as file type. Give it the name *inner-wall.stl* and export it.
-1. Do the same with the *outer-wall* body, exporting as *outer-wall.stl*.
-
-![imgs/cad_export.gif](imgs/cad_export.gif)
-
-If you wish to change something more than length and width of the walls, just keep in mind the following:
-
-- Dimensions are in millimeters since this is a popular standard in CAD software - and also in the 3D printing community.
-- The parameter *Panel Support Lateral Play* should likely be kept unchanged. It is used to shrink the panel support bar to avoid issues when assembling the panels. If you want, you can increase it a little and see what it does.
-- The parameter *Junction Indentation* should be strictly between zero and half of the side length. It should not be too large, to allow enough stability and support, but also not to small, to let multiple wires pass through it.
-- *Panel Support Height* should be smaller than *Junction Height* minus *Plexiglass Thickness*.
-- The LED strip should be glued on the lower part of the wall: make sure there is enough space for it!
+- Not required, but recommended: screw terminals. They make it much easier to connect components to each others.
 
 
-## Walls made out of cardboard as a cheap alternative
+## Manufacturing the walls
 
-As I mentioned before, I do not own a 3D printer yet (but it is in my wishlist :wink:) and therefore I could not build the panels using my CAD models. As a cheap and relatively quick alternative, I used cardboard to create the walls of my first prototypes. I completely disregarded aesthetics, but I believe that with a little more efforts one could easily achieve a nice result even with this material.
+### 3D-printed walls and joints
+
+If you installed and configured FreeCAD, the designer should have exported some STL files that are ready to be sliced and printed. There are two types of component to be printed, *walls* and *joints*. Walls are further divided in *inner walls* (sides shared by two panels) and *outer walls* (sides belonging to a unique hexagon). The difference is that inner walls have a small support for the acrylic panels on both sides, while outer walls have this support on one side only. There are also different types of joints, each allowing to join a different amount of walls together. To know how many copies of each STL you have to print, look inside the bill of materials.
+
+I will not give specific instructions to print these components, since I think this heavily depends on the printer you are using. Just as a guideline, in my case I simply imported the components in [Cura](https://ultimaker.com/software/ultimaker-cura) to slice them, saved the g-code in a SD card and finally printed them with an Ender-3.
+
+![imgs/printed_parts.jpg](imgs/printed_parts.jpg)
+
+
+### Cardboard walls as a cheap alternative
+
+If 3D printing is not an option, a cheap and relatively quick alternative is to use cardboard to create the walls. This was the solution for my first prototypes. I completely disregarded aesthetics, but I believe that with a little more efforts one could easily achieve a nice result even with this material.
 
 Just for reference, this is how I created the cardboard walls:
 
@@ -453,22 +479,29 @@ Just for reference, this is how I created the cardboard walls:
 
 ## Assembling the panels
 
+In my case, the easiest and cheapest way to create the panels was to use transparent acrylic and then apply an opaque film on top of it. Of course, other solutions are possible! Anyway, here is the process I followed:
+
 1. Using a cutter knife, cut the tiles out of the acrylic.
 1. Repeat the process using the opaque film, making sure that each film piece fits inside an acrylic tile with a little bit of margin.
 1. For each tile, remove the protective film from the acrylic and stick the opaque film on top of it.
-1. Glue the panels and the walls altogether.
+1. If using the printed parts, you can join walls together using the printed joints (you can add glue as well for increased rigidity) and then glue the panels to the structure. If you opted for other materials, attach walls and panels in the best way you can.
 1. Prepare the LEDs: cut them in strips with the required amount of LEDs and solder a pair of connectors at each end. Make sure to be consistent with the direction of the data pins and the connector types at each end, so that strips can be joined in series!
 1. Attach the stripes inside each panel. Make sure to respect the detailed routing diagram for a flawless integration inside SignalRGB :wink:
 
 <p align="center">
-<img src="imgs/build_panels_01.JPG" alt="imgs/build_panels_01.JPG" width="32.5%"/>
-<img src="imgs/build_panels_02.JPG" alt="imgs/build_panels_02.JPG" width="32.5%"/>
-<img src="imgs/build_panels_03.JPG" alt="imgs/build_panels_03.JPG" width="32.5%"/>
-<img src="imgs/build_panels_04.JPG" alt="imgs/build_panels_04.JPG" width="32.5%"/>
-<img src="imgs/build_panels_05.JPG" alt="imgs/build_panels_05.JPG" width="32.5%"/>
-<img src="imgs/build_panels_06.JPG" alt="imgs/build_panels_06.JPG" width="32.5%"/>
-<img src="imgs/build_panels_07.JPG" alt="imgs/build_panels_07.JPG" width="32.5%"/>
-<img src="imgs/build_panels_08.png" alt="imgs/build_panels_08.png" width="32.5%"/>
+<img src="imgs/build_panels_01.JPG" alt="imgs/build_panels_01.JPG" width="19.5%"/>
+<img src="imgs/build_panels_02.JPG" alt="imgs/build_panels_02.JPG" width="19.5%"/>
+<img src="imgs/build_panels_03.JPG" alt="imgs/build_panels_03.JPG" width="19.5%"/>
+<img src="imgs/build_panels_04.JPG" alt="imgs/build_panels_04.JPG" width="19.5%"/>
+<img src="imgs/build_panels_05.JPG" alt="imgs/build_panels_05.JPG" width="19.5%"/>
+</p>
+
+<p align="center">
+<img src="imgs/join_parts.jpg" alt="imgs/join_parts.jpg" width="19.5%"/>
+<img src="imgs/printed_hex.jpg" alt="imgs/printed_hex.jpg" width="19.5%"/>
+<img src="imgs/build_panels_06.JPG" alt="imgs/build_panels_06.JPG" width="19.5%"/>
+<img src="imgs/build_panels_07.JPG" alt="imgs/build_panels_07.JPG" width="19.5%"/>
+<img src="imgs/build_panels_08.png" alt="imgs/build_panels_08.png" width="19.5%"/>
 </p>
 
 
@@ -476,8 +509,7 @@ Just for reference, this is how I created the cardboard walls:
 
 ### Preparing the Pico controller
 
-| :construction: :construction_worker: This section is to be written. For the moment, I am using an Arduino Micro acting as a Corsair Lighting Node Pro, which I had already built following the instructions in the [CorsairLightingProtocol](https://github.com/Legion2/CorsairLightingProtocol) repository. The plan is to switch to a Pico board using the [SRGBmods Pico LED Controller](https://srgbmods.net/picoled/). |
-| :-- |
+To use the panels in SignalRGB, you can use a Raspberry Pi Pico and the amazing [SRGBmods Pico LED Controller](https://srgbmods.net/picoled/) by FeuerSturm. All you need to do is to follow the setup instructions: click on the *Display instructions about setting up Arduino IDE*, in the bottom, and configure the Pico. In the last steps, when it tells you to open the file that you downloaded from SRGBmods, open instead the `.ino` sketch that has been downloaded in your project folder and use that one to program the Pico. Just for clarity, the firmware is generated by the designer by accessing the SRGBmods page, assigning channels and LEDs to pins, and by "clicking" on the download button.
 
 
 ### Adding the panels into SignalRGB's layouts
@@ -509,6 +541,6 @@ For the moment, I will just keep a short list of things that will be worth menti
 		1. Edit the flagged comments. This is a manual process, unluckily... To speed up the process, you can add the option `--annotate` when running `comment_checker.py`. This overwrite the files by adding the marker `<<<<<` at the end of long comment lines. In this way, you can open the files and do a search for `<<<<<` to quickly find lines that need fixing.
 	- Whenever the code is pushed, a GitHub action will check formatting and report failure if either Black or `comment_checker.py` find any issue.
 - To add new panel types:
-	1. Create a new python file inside `wp3` and give it a meaningful name, *e.g.*, `star.py` if you are creating star-shaped panels.
-	1. Create inside it a class that inherits from `Tile` and implement the methods `configure()`, `configurable_parameters()`, `calculate_center()`, `create_patches()`, `vertices()`, `contains()`, `adjacent()` and, optionally, `get_variants()`.
-	1. Import the tile type into the `wp3` module. The instruction (to be added into `wp3/__init__.py`) might look like `from .start import Star`.
+	1. Create a new python file inside `wp3/tiles` and give it a meaningful name, *e.g.*, `star.py` if you are creating star-shaped panels.
+	1. Create inside it a class that inherits from `Tile` and implement the methods `configure()`, `configurable_parameters()`, `calculate_center()`, `create_patches()`, `vertices()`, `contains()`, `adjacent()` and, optionally, `get_variants()` and `export_stl()`.
+	1. Import the tile type into the `wp3/tiles` sub-module. The instruction (to be added into `wp3/tiles/__init__.py`) might look like `from .start import Star`.

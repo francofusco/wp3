@@ -38,6 +38,18 @@ def main():
     # Load the requested Tile sub-class.
     TileClass = wp3.Tile.load_tile_type(settings["panels"]["tiles"])
 
+    # Create a 'cad' directory within the project and export STLs inside it.
+    cad_save_path = output_dir.joinpath("cad")
+    logger.debug(f"Creating directory '{cad_save_path}'.")
+    cad_save_path.mkdir(parents=True, exist_ok=True)
+    stl_exported = TileClass(
+        0,
+        0,
+        settings["panels"]["spacing"],
+        settings["panels"]["tiles"].get("variant", 0),
+    ).export_stl(cad_save_path, **settings.get("freecad", {}))
+    logger.info(f"STL export: {'success' if stl_exported else 'failure'}.")
+
     # Fill the available design space with the chosen tiles.
     tiles = []
     for row in range(settings["panels"]["rows"]):
@@ -279,50 +291,12 @@ def main():
     # List of items to be purchased/manufactured.
     bill_of_materials = []
 
-    # Count how many "walls" are needed. If all tiles were separated, we would
-    # have a total of six outer walls per tile. However, whenever two tiles
-    # share a side, the corresponding two outer walls should be replaced by a
-    # single inner wall.
-    walls_per_tile = len(visible_tiles[0].vertices())
-    outer_walls = len(visible_tiles) * walls_per_tile
-    inner_walls = 0
-
-    # Look for all pairs of tiles, with no repetitions.
-    for i, tile in enumerate(visible_tiles):
-        for other in visible_tiles[i + 1 :]:
-            # If the other tile is adjacent, then remove one shared wall.
-            if tile.adjacent(other):
-                outer_walls -= 2
-                inner_walls += 1
-    logger.info(
-        f"Parts in the design: {len(visible_tiles)} tiles, "
-        f"{outer_walls} outer walls, {inner_walls} inner walls."
-    )
-
-    # Write down how many walls of each type should be printed, with their
-    # dimensions as well.
-    logger.debug("Adding walls info to the bill of materials.")
-    walls_notes = (
-        f":warning: CAD values are to be updated according to the current tile"
-        f" parameters. This feature is being reworked and therefore I cannot"
-        f" provide the values/instructions right now..."
-    )
-    bill_of_materials.append(
-        wp3.BillItem(
-            name="outer wall",
-            quantity=outer_walls,
-            category="3D printed",
-            notes=walls_notes,
+    # Add walls and joints to the list of materials.
+    logger.info("Adding CAD components to the bill of materials.")
+    for part, quantity in TileClass.count_cad_parts(visible_tiles):
+        bill_of_materials.append(
+            wp3.BillItem(name=part, quantity=quantity, category="3D printed")
         )
-    )
-    bill_of_materials.append(
-        wp3.BillItem(
-            name="inner wall",
-            quantity=inner_walls,
-            category="3D printed",
-            notes=walls_notes,
-        )
-    )
 
     # Process panel materials. The goal is, for each panel type, to evaluate how
     # many tiles can be inserted, or how much it costs to fill them (in case the
@@ -847,6 +821,15 @@ def main():
             )
             with open(signal_rgb_component_file, "w") as f:
                 json.dump(tile_signal_rgb_data, f)
+
+            # Download the SRGBmods Pico firmware.
+            logger.info("Downloading Pico firmware from SRGBmods.")
+            wp3.download_pico_firmware(
+                output_dir,
+                f"{signal_rgb_name_prefix}.ino",
+                np.array(routing.tiles_per_segment()) * leds_per_tile,
+                [],
+            )
     else:
         logger.info(
             "Parameter 'assembly/leds' not found. You can add "

@@ -208,6 +208,23 @@ class Tile(object):
         # Exit by returning the list of tiles that could be fit in the domain.
         return tiles
 
+    @classmethod
+    def count_cad_parts(cls, tiles):
+        """Count the components needed to create the given set of panels.
+
+        Args:
+            tiles: a list of Tile instances.
+        Returns:
+            A list of tuples in the form (part name, quantity), telling for each
+            component (usually, a CAD part to be printed) how many replicas are
+            to be created.
+        """
+        logger.warn(
+            "The chosen Tile subclass does not allow to count the CAD parts to"
+            " be printed."
+        )
+        return []
+
     def __init__(self, row, col, spacing, variant):
         """Constructor for a tile.
 
@@ -419,6 +436,21 @@ class Tile(object):
         """Return the visibility of the tile."""
         return self.patch.get_visible()
 
+    def export_stl(self, path, **params):
+        """Store STL files for this tile inside the given path.
+
+        Args:
+            path: path to a directory wherein STL files will be stored.
+            params: keyword arguments that can be used to customize CAD files.
+        Returns:
+            True if STL files were exported successfully, False otherwise.
+        """
+        logger.warn(
+            "CAD files will not be exported since the method 'export_stl' was"
+            " not overridden in the chosen Tile sub-class."
+        )
+        return False
+
 
 def unique_vertices(tiles):
     """Return the coordinates of unique vertices in a set of tiles.
@@ -442,6 +474,117 @@ def unique_vertices(tiles):
             ):
                 vertices = np.vstack((vertices, v))
     return vertices
+
+
+def create_vertices_map(tiles):
+    """Return a lsit of unique vertices and a map telling which vertices belong
+    to each Tile.
+
+    Given a set of tiles, loop through all their vertices and create a list
+    of all vertices, with no repetitions. Then, for each tile we build a list
+    containing the indices of the vertices that belong to that tile.
+
+    Args:
+        tiles: a list of Tile instances.
+    Returns:
+        vertices: A NumPy array with shape (n_vertices, 2), containing the
+            coordinates of all unique vertices in the group of tiles.
+        tiles_indices: A NumPy array with shape (n_tiles, vertices_per_tile),
+            such that tiles_indices[i,j] provides the index of the j-th vertex
+            of the i-th tile inside vertices. From a practical point of view,
+            this means that vertices[tiles_indices[i,j]] is equivalent to
+            tiles[i].vertices(border=0.5)[j].
+    """
+    # List of all unique 2D points in the group of tile vertices.
+    vertices = unique_vertices(tiles)
+
+    # Create a list that provides, for each tile, the included vertices.
+    tiles_indices = []
+
+    for tile in tiles:
+        # This is a fast (maybe convoluted) way to create a matrix of
+        # squared distances, such that vector_distances[i,j] provides the
+        # displacement between the vertex vertices[i] and the j-th vertex of
+        # the tile.
+        vector_distances = vertices.reshape(-1, 1, 2) - tile.vertices(
+            border=0.5
+        ).reshape(1, -1, 2)
+
+        # Using Einstein's summation, convert displacement vectors into
+        # scalars. The result is a matrix D whose elements D[i,j] are the
+        # squared distances between vertices[i] and the j-th vertex of the
+        # tile. By taking argmin along the first axis, we are left with six
+        # values: they represent the indices of each vertex of the tile.
+        tiles_indices.append(
+            np.einsum("ijk,ijk->ij", vector_distances, vector_distances).argmin(
+                axis=0
+            )
+        )
+
+    # Convert into an array.
+    return vertices, np.array(tiles_indices)
+
+
+def count_vertices_repetitions(tiles):
+    """Count, for each unique vertex, how many tiles use it.
+
+    Args:
+        tiles: a list of Tile instances.
+    Returns:
+        A NumPy array with length n_vertices, telling in how many tiles a vertex
+        appears.
+    """
+    vertices, tiles_indices = create_vertices_map(tiles)
+    appearances = np.zeros(len(vertices))
+    for indices in tiles_indices:
+        appearances[indices] += 1
+    return appearances
+
+
+def count_cad_parts_in_regular_tiling(tiles, max_tiles_per_vertex):
+    """Count the components that are present in a set of regular tiles.
+
+    Regular tiles are hexagons, squares and triangles.
+
+    Args:
+        tiles: list of Tile instances.
+        max_tiles_per_vertex: maximum number of panels that can share a vertex.
+            It should be 3 for hexagons, 4 for squares and 6 for triangles.
+    Returns:
+        A list of tuples in the form (part name, quantity), telling for each
+        component how many replicas are to be created.
+    """
+    # Count how many "walls" are needed. If all tiles were separated, we would
+    # have a total of six outer walls per tile. However, whenever two tiles
+    # share a side, the corresponding two outer walls should be replaced by a
+    # single inner wall.
+    walls_per_tile = len(tiles[0].vertices())
+    outer_walls = len(tiles) * walls_per_tile
+    inner_walls = 0
+
+    # Look for all pairs of tiles, with no repetitions.
+    for i, tile in enumerate(tiles):
+        for other in tiles[i + 1 :]:
+            # If the other tile is adjacent, then remove one shared wall.
+            if tile.adjacent(other):
+                outer_walls -= 2
+                inner_walls += 1
+
+    parts = [("Outer walls", outer_walls), ("Inner walls", inner_walls)]
+
+    # Count how many walls each joint should constrain.
+    walls_per_vertex = 1 + np.minimum(
+        max_tiles_per_vertex - 1, count_vertices_repetitions(tiles)
+    )
+
+    # Count the number of joints needed, per type.
+    for n_walls, n_joints in zip(
+        *np.unique(walls_per_vertex, return_counts=True)
+    ):
+        parts.append((f"{int(n_walls)}-walls joint", n_joints))
+
+    # Return the result.
+    return parts
 
 
 def get_bounding_box(tiles):
